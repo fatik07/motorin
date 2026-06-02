@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-expo-app@latest *)",
+      "Bash(mv motor-track-temp/* motor-track-temp/.* .)",
+      "Bash(rmdir motor-track-temp *)"
+    ]
+  }
+}
