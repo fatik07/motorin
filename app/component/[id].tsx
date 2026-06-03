@@ -233,9 +233,12 @@ export default function ComponentDetailScreen() {
                 <TouchableOpacity
                     activeOpacity={1}
                     style={styles.editButton}
-                    onPress={() => {
-                        /* TODO: navigate to edit page */
-                    }}
+                    onPress={() =>
+                        router.push({
+                            pathname: `/component/edit/${component.id}`,
+                            params: { data: JSON.stringify(component) },
+                        })
+                    }
                     onPressIn={() => animateButton(editButtonScale, 0.95)}
                     onPressOut={() => animateButton(editButtonScale, 1)}
                 >
