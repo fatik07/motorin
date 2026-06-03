@@ -3,6 +3,7 @@ export const COLORS = {
   // Primary colors
   primary: '#ffd60a', // Yellow
   secondary: '#6dfe9c', // Green
+  thirdary: '#d2d2d2', // Blue
 
   // Background colors
   background: '#f5f5f5', // Light gray
@@ -20,6 +21,10 @@ export const COLORS = {
   warning: '#f59e0b', // Orange
   error: '#ef4444', // Red
   info: '#3b82f6', // Blue
+
+  pink: '#FEDAD6', // Pink
+  green: '#6DFE9C', // Green
+  yellow: '#FFD545', // Yellow
 };
 
 export const BORDER_WIDTH = {

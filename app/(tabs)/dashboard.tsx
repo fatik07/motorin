@@ -66,7 +66,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     Animated,
-    Alert,
 } from "react-native";
 
 export default function DashboardScreen() {
@@ -153,12 +152,12 @@ export default function DashboardScreen() {
                             </View>
 
                             <Text style={modalStyles.subtitle}>
-                                Enter your current motorcycle mileage.
+                                Masukkan jarak tempuh motor Anda saat ini.
                             </Text>
 
                             <View style={modalStyles.lastRecordedRow}>
                                 <Text style={modalStyles.lastLabel}>
-                                    LAST RECORDED
+                                    Kilometer Terakhir
                                 </Text>
                                 <Text style={modalStyles.lastValue}>
                                     12,450 KM
@@ -167,7 +166,7 @@ export default function DashboardScreen() {
 
                             <View style={modalStyles.inputBlock}>
                                 <Text style={modalStyles.inputLabel}>
-                                    NEW KILOMETERS
+                                    KILOMETER BARU
                                 </Text>
                                 <View style={modalStyles.inputWrapper}>
                                     <TextInput

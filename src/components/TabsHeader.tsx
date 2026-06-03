@@ -18,7 +18,7 @@ export default function TabsHeader({ title = "Dashboard" }: TabsHeaderProps) {
 const styles = StyleSheet.create({
     header: {
         paddingHorizontal: 20,
-        paddingTop: 30,
+        paddingTop: 40,
         paddingBottom: 5,
         backgroundColor: COLORS.background,
         borderBottomWidth: BORDER_WIDTH.thin,

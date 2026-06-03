@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { ComponentWithStatus } from "../types";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
-import { getStatusColor, getStatusText } from "@utils/componentStatus";
+import { getStatusColor, getStatusText, getProgressColor } from "@utils/componentStatus";
 
 interface ComponentCardProps {
     component: ComponentWithStatus;
@@ -15,6 +15,7 @@ export default function ComponentCard({
     compact = false,
 }: ComponentCardProps) {
     const statusColor = getStatusColor(component.status);
+    const progressColor = getProgressColor(component.status);
     const statusText = getStatusText(component.remainingKm);
 
     const CardContainer = onPress ? TouchableOpacity : View;
@@ -79,7 +80,7 @@ export default function ComponentCard({
                             styles.progressBarFill,
                             {
                                 width: `${Math.min(100, component.progressPercentage)}%`,
-                                backgroundColor: statusColor,
+                                backgroundColor: progressColor,
                             },
                         ]}
                     />

@@ -8,6 +8,24 @@ import { COLORS } from '@constants/theme';
 export const getStatusColor = (status: 'good' | 'warning' | 'critical') => {
   switch (status) {
     case 'good':
+      return COLORS.green;
+    case 'warning':
+      return COLORS.yellow;
+    case 'critical':
+      return COLORS.pink;
+    default:
+      return COLORS.textSecondary;
+  }
+};
+
+/**
+ * Returns the color for progress bar fill
+ * @param status The status of the component ('good', 'warning', 'critical')
+ * @returns Hex color string
+ */
+export const getProgressColor = (status: 'good' | 'warning' | 'critical') => {
+  switch (status) {
+    case 'good':
       return COLORS.success;
     case 'warning':
       return COLORS.warning;
@@ -30,5 +48,5 @@ export const getStatusText = (remainingKm: number) => {
   
   // Format with dots for thousands separator (Indonesian style)
   const formattedKm = remainingKm.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${formattedKm} KM LAGI`;
+  return `SISA ${formattedKm} / ${formattedKm} KM`;
 };

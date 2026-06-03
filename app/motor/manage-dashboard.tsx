@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
     View,
     Text,
@@ -6,13 +6,13 @@ import {
     SafeAreaView,
     TouchableOpacity,
     TextInput,
-    Image,
     FlatList,
     Alert,
+    Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
-import { ArrowUp, ArrowDown } from "lucide-react-native";
+import { ArrowUp, ArrowDown, Plus } from "lucide-react-native";
 
 interface Item {
     id: string;
@@ -60,6 +60,15 @@ export default function ManageDashboard() {
     const [adding, setAdding] = useState(false);
     const [newName, setNewName] = useState("");
     const router = useRouter();
+    const saveButtonScale = useRef(new Animated.Value(1)).current;
+
+    const animateButton = (scale: Animated.Value, toValue: number) => {
+        Animated.spring(scale, {
+            toValue,
+            useNativeDriver: true,
+            friction: 3,
+        }).start();
+    };
 
     const toggleActive = (id: string) => {
         setItems((cur) =>
@@ -115,7 +124,7 @@ export default function ManageDashboard() {
                 >
                     <Text style={styles.closeX}>✕</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>Atur Dashboard</Text>
+                <Text style={styles.title}>Atur Komponen</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -132,13 +141,14 @@ export default function ManageDashboard() {
                     style={styles.addBtn}
                     onPress={() => setAdding(true)}
                 >
-                    <Text style={styles.addBtnText}>Tambah Komponen</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.doneBtn}
-                    onPress={() => router.back()}
-                >
-                    <Text style={styles.doneText}>Selesai</Text>
+                    <View style={styles.manageRow}>
+                        <Plus
+                            size={18}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.4}
+                        />
+                        <Text style={styles.addBtnText}>Tambah Komponen</Text>
+                    </View>
                 </TouchableOpacity>
             </View>
 
@@ -222,6 +232,22 @@ export default function ManageDashboard() {
                     </View>
                 )}
             />
+
+            <Animated.View
+                style={{
+                    transform: [{ scale: saveButtonScale }],
+                }}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.saveButton}
+                    onPress={() => router.back()}
+                    onPressIn={() => animateButton(saveButtonScale, 0.95)}
+                    onPressOut={() => animateButton(saveButtonScale, 1)}
+                >
+                    <Text style={styles.saveButtonText}>SIMPAN PERUBAHAN</Text>
+                </TouchableOpacity>
+            </Animated.View>
         </SafeAreaView>
     );
 }
@@ -229,18 +255,19 @@ export default function ManageDashboard() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: COLORS.background },
     header: {
-        height: 72,
+        marginTop: 40,
+        height: 52,
         paddingHorizontal: 20,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        borderBottomWidth: BORDER_WIDTH.thin,
+        borderBottomWidth: BORDER_WIDTH.thick,
         borderColor: COLORS.border,
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
     },
     closeBtn: {
-        width: 40,
-        height: 40,
+        width: 30,
+        height: 30,
         borderWidth: BORDER_WIDTH.thin,
         borderColor: COLORS.border,
         alignItems: "center",
@@ -256,6 +283,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginBottom: 8,
     },
+    manageRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 8,
+    },
     addBtn: {
         flex: 1,
         backgroundColor: COLORS.surface,
@@ -265,15 +298,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     addBtnText: { fontWeight: "800", color: COLORS.textPrimary },
-    doneBtn: {
-        marginLeft: 12,
-        backgroundColor: COLORS.primary,
-        borderWidth: BORDER_WIDTH.thick,
-        borderColor: COLORS.border,
-        padding: 12,
-        alignItems: "center",
-    },
-    doneText: { fontWeight: "800", color: COLORS.textPrimary },
     addBlock: { paddingHorizontal: 20, paddingBottom: 12 },
     input: {
         borderWidth: BORDER_WIDTH.thin,
@@ -312,9 +336,9 @@ const styles = StyleSheet.create({
     rowActions: { flexDirection: "row", alignItems: "center", gap: 8 },
     iconBtn: { padding: 8 },
     toggle: {
-        width: 46,
+        width: 56,
         height: 28,
-        borderRadius: 20,
+        borderRadius: 14,
         borderWidth: BORDER_WIDTH.thin,
         borderColor: COLORS.border,
         marginLeft: 12,
@@ -322,13 +346,23 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     toggleOn: { backgroundColor: COLORS.secondary },
-    toggleOff: { backgroundColor: COLORS.surface },
+    toggleOff: { backgroundColor: COLORS.thirdary },
     toggleDot: {
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
         borderRadius: 12,
         backgroundColor: COLORS.surface,
         alignSelf: "flex-start",
     },
-    toggleDotOn: { alignSelf: "flex-end", backgroundColor: COLORS.primary },
+    toggleDotOn: { alignSelf: "flex-end", backgroundColor: COLORS.info },
+    saveButton: {
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        paddingVertical: 18,
+        alignItems: "center",
+        marginBottom: 30,
+        marginHorizontal: 20,
+    },
+    saveButtonText: { fontWeight: "800", color: COLORS.textPrimary },
 });
