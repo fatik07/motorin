@@ -18,8 +18,10 @@ const primaryComponents: ComponentWithStatus[] = [
         name: "Oli Mesin",
         category: "engine",
         status: "critical",
+        installKm: 11950,
+        lifespan: 3000,
         remainingKm: 500,
-        progressPercentage: 15,
+        progressPercentage: 85,
     },
     {
         id: "front-tire",
@@ -27,8 +29,10 @@ const primaryComponents: ComponentWithStatus[] = [
         name: "Ban Depan",
         category: "tire",
         status: "good",
+        installKm: 4250,
+        lifespan: 15000,
         remainingKm: 8200,
-        progressPercentage: 82,
+        progressPercentage: 45,
     },
     {
         id: "rear-tire",
@@ -36,8 +40,10 @@ const primaryComponents: ComponentWithStatus[] = [
         name: "Ban Belakang",
         category: "tire",
         status: "warning",
+        installKm: 4250,
+        lifespan: 12000,
         remainingKm: 3400,
-        progressPercentage: 45,
+        progressPercentage: 72,
     },
     {
         id: "brake",
@@ -45,8 +51,10 @@ const primaryComponents: ComponentWithStatus[] = [
         name: "Rem",
         category: "brake",
         status: "warning",
+        installKm: 8000,
+        lifespan: 10000,
         remainingKm: 1200,
-        progressPercentage: 30,
+        progressPercentage: 88,
     },
     {
         id: "air-filter",
@@ -54,8 +62,10 @@ const primaryComponents: ComponentWithStatus[] = [
         name: "Filter Udara",
         category: "engine",
         status: "good",
+        installKm: 7450,
+        lifespan: 10000,
         remainingKm: 5000,
-        progressPercentage: 60,
+        progressPercentage: 50,
     },
 ];
 
@@ -274,6 +284,14 @@ export default function DashboardScreen() {
                         <ComponentCard
                             key={component.id}
                             component={component}
+                            onPress={() =>
+                                router.push({
+                                    pathname: `/component/${component.id}`,
+                                    params: {
+                                        data: JSON.stringify(component),
+                                    },
+                                })
+                            }
                         />
                     ))}
                 </View>
