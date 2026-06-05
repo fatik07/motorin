@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
-import { ArrowUp, ArrowDown, Plus } from "lucide-react-native";
+import { ArrowUp, ArrowDown, Plus, ArrowLeft } from "lucide-react-native";
 
 interface Item {
     id: string;
@@ -61,6 +61,7 @@ export default function ManageDashboard() {
     const [newName, setNewName] = useState("");
     const router = useRouter();
     const saveButtonScale = useRef(new Animated.Value(1)).current;
+    const backButtonScale = useRef(new Animated.Value(1)).current;
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -132,12 +133,17 @@ export default function ManageDashboard() {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={styles.closeBtn}
-                >
-                    <Text style={styles.closeX}>✕</Text>
-                </TouchableOpacity>
+                <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                        onPressIn={() => animateButton(backButtonScale, 0.9)}
+                        onPressOut={() => animateButton(backButtonScale, 1)}
+                        activeOpacity={1}
+                    >
+                        <ArrowLeft size={20} color={COLORS.textPrimary} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                </Animated.View>
                 <Text style={styles.title}>Atur Komponen</Text>
                 <View style={{ width: 40 }} />
             </View>
@@ -279,7 +285,7 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         backgroundColor: COLORS.background,
     },
-    closeBtn: {
+    backButton: {
         width: 30,
         height: 30,
         borderWidth: BORDER_WIDTH.thin,
@@ -287,7 +293,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    closeX: { fontSize: 18, fontWeight: "800", color: COLORS.textPrimary },
     title: { fontSize: 20, fontWeight: "800", color: COLORS.textPrimary },
     intro: { padding: 20 },
     introText: { color: COLORS.textSecondary },
