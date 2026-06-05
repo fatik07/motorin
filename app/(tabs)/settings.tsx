@@ -7,6 +7,8 @@ import {
     TouchableOpacity,
     Image,
     Animated,
+    Alert,
+    BackHandler,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -30,6 +32,24 @@ export default function SettingsScreen() {
             useNativeDriver: true,
             friction: 3,
         }).start();
+    };
+
+    const handleLogout = () => {
+        Alert.alert(
+            "Keluar Akun",
+            "Apakah Anda yakin ingin keluar dan menutup aplikasi?",
+            [
+                {
+                    text: "Tidak",
+                    style: "cancel",
+                },
+                {
+                    text: "Ya",
+                    onPress: () => BackHandler.exitApp(),
+                },
+            ],
+            { cancelable: true },
+        );
     };
 
     return (
@@ -130,6 +150,7 @@ export default function SettingsScreen() {
                         <TouchableOpacity
                             activeOpacity={1}
                             style={[styles.listItem, styles.logoutItem]}
+                            onPress={handleLogout}
                             onPressIn={() => animateButton(logoutScale, 0.98)}
                             onPressOut={() => animateButton(logoutScale, 1)}
                         >
