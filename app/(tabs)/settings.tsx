@@ -75,6 +75,7 @@ export default function SettingsScreen() {
                         <TouchableOpacity
                             activeOpacity={1}
                             style={styles.editButton}
+                            onPress={() => router.push("/settings/edit-profile")}
                             onPressIn={() =>
                                 animateButton(editProfileScale, 0.95)
                             }
