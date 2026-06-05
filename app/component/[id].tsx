@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     heroBadgeText: {
         fontSize: 12,
         fontWeight: "800",
-        color: COLORS.surface,
+        color: COLORS.textPrimary,
         letterSpacing: 1,
     },
     heroBottomRow: {

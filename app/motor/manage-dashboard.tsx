@@ -115,6 +115,20 @@ export default function ManageDashboard() {
         setAdding(false);
     };
 
+    const handleSave = () => {
+        Alert.alert(
+            "Berhasil",
+            "Perubahan komponen telah berhasil disimpan.",
+            [
+                {
+                    text: "OK",
+                    onPress: () => router.back(),
+                },
+            ],
+            { cancelable: false },
+        );
+    };
+
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
@@ -241,7 +255,7 @@ export default function ManageDashboard() {
                 <TouchableOpacity
                     activeOpacity={1}
                     style={styles.saveButton}
-                    onPress={() => router.back()}
+                    onPress={handleSave}
                     onPressIn={() => animateButton(saveButtonScale, 0.95)}
                     onPressOut={() => animateButton(saveButtonScale, 1)}
                 >
