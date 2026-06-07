@@ -10,6 +10,15 @@ import { Bike, Gauge, Pencil, SlidersVertical } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ComponentCard, NeoBrutalCard, TabsHeader } from "@components/index";
 import type { ComponentWithStatus } from "../../src/types";
+import {
+    Modal,
+    TextInput,
+    SafeAreaView,
+    KeyboardAvoidingView,
+    Platform,
+    Animated,
+} from "react-native";
+import { useRouter } from "expo-router";
 
 const primaryComponents: ComponentWithStatus[] = [
     {
@@ -69,18 +78,9 @@ const primaryComponents: ComponentWithStatus[] = [
     },
 ];
 
-import {
-    Modal,
-    TextInput,
-    SafeAreaView,
-    KeyboardAvoidingView,
-    Platform,
-    Animated,
-} from "react-native";
-
 export default function DashboardScreen() {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
-    const router = require("expo-router").useRouter();
+    const router = useRouter();
 
     const closeButtonScale = useRef(new Animated.Value(1)).current;
     const saveButtonScale = useRef(new Animated.Value(1)).current;
@@ -286,7 +286,7 @@ export default function DashboardScreen() {
                             component={component}
                             onPress={() =>
                                 router.push({
-                                    pathname: `/component/${component.id}`,
+                                    pathname: `/dashboard/${component.id}`,
                                     params: {
                                         data: JSON.stringify(component),
                                     },
@@ -299,7 +299,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                     activeOpacity={0.8}
                     style={styles.manageButton}
-                    onPress={() => router.push("/motor/manage-dashboard")}
+                    onPress={() => router.push("/dashboard/manage-komponen")}
                 >
                     <View style={styles.manageRow}>
                         <SlidersVertical

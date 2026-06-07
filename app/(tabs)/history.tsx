@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "flex-start",
         marginBottom: 20,
-        gap: 16,
+        gap: 14,
     },
     timelineDot: {
         width: 14,
@@ -365,6 +365,7 @@ const styles = StyleSheet.create({
         borderWidth: BORDER_WIDTH.thick,
         borderColor: COLORS.border,
         marginTop: 22,
+        marginLeft: 1.5,
         flexShrink: 0,
     },
     timelineDotActive: {

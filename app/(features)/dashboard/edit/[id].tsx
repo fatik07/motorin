@@ -13,7 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ArrowLeft, Trash2 } from "lucide-react-native";
-import type { ComponentWithStatus } from "../../../src/types";
+import type { ComponentWithStatus } from "../../../../src/types";
 
 export default function EditComponentScreen() {
     const router = useRouter();
@@ -95,7 +95,9 @@ export default function EditComponentScreen() {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
-                <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+                <Animated.View
+                    style={{ transform: [{ scale: backButtonScale }] }}
+                >
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={() => router.back()}
@@ -103,7 +105,11 @@ export default function EditComponentScreen() {
                         onPressOut={() => animateButton(backButtonScale, 1)}
                         activeOpacity={1}
                     >
-                        <ArrowLeft size={20} color={COLORS.textPrimary} strokeWidth={2.5} />
+                        <ArrowLeft
+                            size={20}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.5}
+                        />
                     </TouchableOpacity>
                 </Animated.View>
                 <Text style={styles.title}>Edit {component.name}</Text>

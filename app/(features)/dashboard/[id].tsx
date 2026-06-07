@@ -20,7 +20,7 @@ import {
     CircleAlert,
     ArrowLeft,
 } from "lucide-react-native";
-import type { ComponentWithStatus } from "../../src/types";
+import type { ComponentWithStatus } from "../../../src/types";
 
 const categoryIcons: Record<string, React.ReactNode> = {
     engine: <Droplet size={32} color={COLORS.textPrimary} strokeWidth={2} />,
@@ -79,7 +79,9 @@ export default function ComponentDetailScreen() {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
-                <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+                <Animated.View
+                    style={{ transform: [{ scale: backButtonScale }] }}
+                >
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={() => router.back()}
@@ -87,7 +89,11 @@ export default function ComponentDetailScreen() {
                         onPressOut={() => animateButton(backButtonScale, 1)}
                         activeOpacity={1}
                     >
-                        <ArrowLeft size={20} color={COLORS.textPrimary} strokeWidth={2.5} />
+                        <ArrowLeft
+                            size={20}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.5}
+                        />
                     </TouchableOpacity>
                 </Animated.View>
                 <Text style={styles.title}>Detail {component.name}</Text>
@@ -242,7 +248,7 @@ export default function ComponentDetailScreen() {
                     style={styles.editButton}
                     onPress={() =>
                         router.push({
-                            pathname: `/component/edit/${component.id}`,
+                            pathname: `/dashboard/edit/${component.id}`,
                             params: { data: JSON.stringify(component) },
                         })
                     }
