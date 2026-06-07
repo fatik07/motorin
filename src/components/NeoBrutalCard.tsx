@@ -1,10 +1,10 @@
-import { View, StyleSheet, ViewStyle } from "react-native";
+import { View, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { ReactNode } from "react";
 
 interface NeoBrutalCardProps {
     children: ReactNode;
-    style?: ViewStyle;
+    style?: StyleProp<ViewStyle>;
 }
 
 export default function NeoBrutalCard({ children, style }: NeoBrutalCardProps) {

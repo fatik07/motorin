@@ -185,7 +185,8 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
     },
     contentContainer: {
-        paddingBottom: 100,
+        paddingBottom: 50,
+        marginTop: 6,
     },
     stickyHeader: {
         backgroundColor: COLORS.background,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 20,
-        paddingTop: 24,
+        paddingTop: 18,
     },
     profileCard: {
         backgroundColor: COLORS.surface,
