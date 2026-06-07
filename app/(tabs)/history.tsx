@@ -268,7 +268,7 @@ export default function HistoryScreen() {
                     style={styles.fab}
                     onPressIn={() => animateFab(0.92)}
                     onPressOut={() => animateFab(1)}
-                    onPress={() => router.push("/history/add")}
+                    onPress={() => router.push("/history/tambah")}
                 >
                     <Plus
                         size={28}

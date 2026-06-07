@@ -1,11 +1,36 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { Calendar, Gauge, FileText, Wallet, Wrench } from "lucide-react-native";
+import { useRef } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    SafeAreaView,
+    TouchableOpacity,
+    ScrollView,
+    Animated,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
+import {
+    ArrowLeft,
+    Gauge,
+    FileText,
+    Wallet,
+    Calendar,
+} from "lucide-react-native";
+import NeoBrutalCard from "@components/NeoBrutalCard";
 
-import { COLORS, BORDER_WIDTH } from "@constants/theme";
-import { NeoBrutalCard, TabsHeader } from "@components/index";
+type ServiceRecord = {
+    id: string;
+    date: string;
+    title: string;
+    odometer: string;
+    description: string;
+    cost: string;
+    status: "SELESAI" | "LAMA";
+    category: "Oli" | "Ban" | "Mesin" | "Lainnya";
+};
 
-const SERVICE_RECORDS = [
+const SERVICE_RECORDS: ServiceRecord[] = [
     {
         id: "1",
         date: "12 Okt 2023",
@@ -38,76 +63,118 @@ const SERVICE_RECORDS = [
     },
 ];
 
-export default function ServiceDetailScreen() {
-    const { id } = useLocalSearchParams();
+export default function HistoryDetailScreen() {
+    const router = useRouter();
+    const { id } = useLocalSearchParams<{ id: string }>();
+
+    const backButtonScale = useRef(new Animated.Value(1)).current;
+
+    const animateButton = (scale: Animated.Value, toValue: number) => {
+        Animated.spring(scale, {
+            toValue,
+            useNativeDriver: true,
+            friction: 3,
+        }).start();
+    };
 
     const record = SERVICE_RECORDS.find((item) => item.id === id);
 
     if (!record) {
         return (
-            <View style={styles.center}>
-                <Text style={styles.notFound}>Data servis tidak ditemukan</Text>
-            </View>
+            <SafeAreaView style={styles.safe}>
+                <View style={styles.center}>
+                    <Text style={styles.notFound}>Data tidak ditemukan</Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
-    return (
-        <View style={styles.container}>
-            <TabsHeader title="Detail Servis" />
+    const isDone = record.status === "SELESAI";
 
+    return (
+        <SafeAreaView style={styles.safe}>
+            {/* HEADER */}
+            <View style={styles.header}>
+                <Animated.View
+                    style={{ transform: [{ scale: backButtonScale }] }}
+                >
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                        onPressIn={() => animateButton(backButtonScale, 0.9)}
+                        onPressOut={() => animateButton(backButtonScale, 1)}
+                        activeOpacity={1}
+                    >
+                        <ArrowLeft
+                            size={20}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.5}
+                        />
+                    </TouchableOpacity>
+                </Animated.View>
+
+                <Text style={styles.title}>Detail Servis</Text>
+                <View style={{ width: 40 }} />
+            </View>
+
+            {/* CONTENT */}
             <ScrollView
-                contentContainerStyle={styles.content}
+                style={styles.container}
+                contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
-                <NeoBrutalCard style={styles.heroCard}>
-                    <Text style={styles.title}>
+                {/* HERO */}
+                <View style={styles.heroCard}>
+                    <Text style={styles.heroLabel}>RIWAYAT SERVIS</Text>
+                    <Text style={styles.heroName}>
                         {record.title.toUpperCase()}
                     </Text>
 
                     <View
                         style={[
-                            styles.statusBadge,
-                            record.status === "SELESAI"
-                                ? styles.doneBadge
-                                : styles.oldBadge,
+                            styles.heroBadge,
+                            {
+                                backgroundColor: isDone ? "#6dfe9c" : "#d0c6ab",
+                            },
                         ]}
                     >
-                        <Text style={styles.statusText}>{record.status}</Text>
+                        <Text style={styles.heroBadgeText}>
+                            {record.status}
+                        </Text>
                     </View>
-                </NeoBrutalCard>
 
-                {/* Informasi */}
-                <NeoBrutalCard>
-                    <Text style={styles.sectionTitle}>INFORMASI SERVIS</Text>
+                    <Text style={styles.heroDescription}>
+                        {record.description}
+                    </Text>
+                </View>
 
-                    <View style={styles.row}>
+                {/* INFO */}
+                <View style={styles.infoGrid}>
+                    <View style={styles.infoCard}>
                         <Calendar size={18} color={COLORS.primary} />
-                        <Text style={styles.value}>{record.date}</Text>
+                        <Text style={styles.infoLabel}>Tanggal</Text>
+                        <Text style={styles.infoValue}>{record.date}</Text>
                     </View>
 
-                    <View style={styles.row}>
+                    <View style={styles.infoCard}>
                         <Gauge size={18} color={COLORS.primary} />
-                        <Text style={styles.value}>{record.odometer}</Text>
+                        <Text style={styles.infoLabel}>Odometer</Text>
+                        <Text style={styles.infoValue}>{record.odometer}</Text>
                     </View>
 
-                    <View style={styles.row}>
-                        <Wrench size={18} color={COLORS.primary} />
-                        <Text style={styles.value}>{record.category}</Text>
-                    </View>
-
-                    <View style={styles.row}>
+                    <View style={styles.infoCard}>
                         <FileText size={18} color={COLORS.primary} />
-                        <Text style={styles.value}>{record.description}</Text>
+                        <Text style={styles.infoLabel}>Kategori</Text>
+                        <Text style={styles.infoValue}>{record.category}</Text>
                     </View>
 
-                    <View style={styles.row}>
-                        <Wallet size={18} color={COLORS.primary} />
-                        <Text style={styles.cost}>{record.cost}</Text>
+                    <View style={[styles.infoCard, styles.costCard]}>
+                        <Wallet size={18} color={COLORS.textPrimary} />
+                        <Text style={styles.infoLabel}>Biaya</Text>
+                        <Text style={styles.costValue}>{record.cost}</Text>
                     </View>
-                </NeoBrutalCard>
+                </View>
 
-                {/* Catatan */}
                 <NeoBrutalCard>
                     <Text style={styles.sectionTitle}>CATATAN</Text>
 
@@ -117,83 +184,132 @@ export default function ServiceDetailScreen() {
                     </Text>
                 </NeoBrutalCard>
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    safe: {
         flex: 1,
         backgroundColor: COLORS.background,
     },
 
-    content: {
+    header: {
+        marginTop: 40,
+        height: 52,
+        paddingHorizontal: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderBottomWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.background,
+    },
+
+    backButton: {
+        width: 30,
+        height: 30,
+        borderWidth: BORDER_WIDTH.thin,
+        borderColor: COLORS.border,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    title: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+    },
+
+    container: {
+        flex: 1,
+    },
+
+    contentContainer: {
         padding: 20,
         gap: 16,
         paddingBottom: 40,
     },
 
     heroCard: {
-        gap: 12,
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 20,
+        shadowColor: COLORS.border,
+        shadowOffset: { width: SHADOW_OFFSET, height: SHADOW_OFFSET },
+        shadowOpacity: 1,
+        elevation: 4,
+        gap: 10,
     },
 
-    title: {
-        fontSize: 24,
-        fontWeight: "900",
-        color: COLORS.textPrimary,
-    },
-
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: "900",
-        marginBottom: 16,
-        letterSpacing: 1,
+    heroLabel: {
+        fontSize: 12,
+        fontWeight: "700",
         color: COLORS.textSecondary,
+        textTransform: "uppercase",
     },
 
-    row: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 16,
-    },
-
-    value: {
-        fontSize: 15,
-        color: COLORS.textPrimary,
-        fontWeight: "600",
-    },
-
-    cost: {
-        fontSize: 18,
-        color: COLORS.primary,
+    heroName: {
+        fontSize: 22,
         fontWeight: "900",
+        color: COLORS.textPrimary,
     },
 
-    statusBadge: {
+    heroBadge: {
         alignSelf: "flex-start",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
         borderWidth: BORDER_WIDTH.thick,
         borderColor: COLORS.border,
     },
 
-    doneBadge: {
-        backgroundColor: "#6dfe9c",
-    },
-
-    oldBadge: {
-        backgroundColor: "#d0c6ab",
-    },
-
-    statusText: {
-        fontWeight: "800",
+    heroBadgeText: {
         fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
     },
 
-    note: {
-        fontSize: 15,
-        lineHeight: 24,
+    heroDescription: {
+        fontSize: 14,
+        color: COLORS.textPrimary,
+    },
+
+    infoGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+    },
+
+    infoCard: {
+        width: "48%",
+        backgroundColor: COLORS.surface,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 14,
+        gap: 6,
+    },
+
+    infoLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        color: COLORS.textSecondary,
+        textTransform: "uppercase",
+    },
+
+    infoValue: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+    },
+
+    costCard: {
+        backgroundColor: COLORS.primary,
+    },
+
+    costValue: {
+        fontSize: 16,
+        fontWeight: "900",
         color: COLORS.textPrimary,
     },
 
@@ -206,5 +322,20 @@ const styles = StyleSheet.create({
     notFound: {
         fontSize: 16,
         fontWeight: "700",
+        color: COLORS.textPrimary,
+    },
+
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: "900",
+        marginBottom: 16,
+        letterSpacing: 1,
+        color: COLORS.textSecondary,
+    },
+
+    note: {
+        fontSize: 15,
+        lineHeight: 24,
+        color: COLORS.textPrimary,
     },
 });
