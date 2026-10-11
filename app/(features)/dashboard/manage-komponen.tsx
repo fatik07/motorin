@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
     View,
     Text,
@@ -12,55 +12,24 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
-import { ArrowUp, ArrowDown, Plus, ArrowLeft } from "lucide-react-native";
+import { Pin, Eye, EyeOff, Plus, ArrowLeft } from "lucide-react-native";
+import { useComponentStore } from "@store/useComponentStore";
 
-interface Item {
-    id: string;
-    name: string;
-    category?: string;
-    active: boolean;
-    image?: string;
-}
-
-const initialItems: Item[] = [
-    {
-        id: "oil",
-        name: "Oli Mesin",
-        category: "Mesin & Transmisi",
-        active: true,
-    },
-    {
-        id: "front-tire",
-        name: "Ban Depan",
-        category: "Keamanan & Roda",
-        active: true,
-    },
-    {
-        id: "rear-tire",
-        name: "Ban Belakang",
-        category: "Keamanan & Roda",
-        active: true,
-    },
-    {
-        id: "battery",
-        name: "Aki (Battery)",
-        category: "Kelistrikan",
-        active: false,
-    },
-    {
-        id: "v-belt",
-        name: "V-Belt / Rantai",
-        category: "Transmisi",
-        active: true,
-    },
-];
+const MAX_PINNED = 5;
 
 export default function ManageDashboard() {
-    const [items, setItems] = useState<Item[]>(initialItems);
+    const router = useRouter();
+    const components = useComponentStore((state) => state.components);
+    const togglePin = useComponentStore((state) => state.togglePin);
+    const toggleHidden = useComponentStore((state) => state.toggleHidden);
+    const addCustomComponent = useComponentStore(
+        (state) => state.addCustomComponent,
+    );
+
     const [adding, setAdding] = useState(false);
     const [newName, setNewName] = useState("");
-    const router = useRouter();
-    const saveButtonScale = useRef(new Animated.Value(1)).current;
+    const [newIntervalKm, setNewIntervalKm] = useState("");
+
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
@@ -71,63 +40,34 @@ export default function ManageDashboard() {
         }).start();
     };
 
-    const toggleActive = (id: string) => {
-        setItems((cur) =>
-            cur.map((it) =>
-                it.id === id ? { ...it, active: !it.active } : it,
-            ),
-        );
+    const pinnedCount = components.filter((c) => c.isPinned).length;
+
+    const handleTogglePin = (id: string) => {
+        const ok = togglePin(id);
+        if (!ok) {
+            Alert.alert(
+                "Batas Pin Tercapai",
+                `Maksimal ${MAX_PINNED} komponen bisa di-pin ke dashboard. Lepas pin komponen lain terlebih dahulu.`,
+            );
+        }
     };
 
-    const moveUp = (index: number) => {
-        if (index === 0) return;
-        setItems((cur) => {
-            const arr = [...cur];
-            const tmp = arr[index - 1];
-            arr[index - 1] = arr[index];
-            arr[index] = tmp;
-            return arr;
-        });
-    };
+    const handleAddComponent = () => {
+        const intervalKm = parseInt(newIntervalKm.replace(/[^0-9]/g, ""), 10);
 
-    const moveDown = (index: number) => {
-        if (index === items.length - 1) return;
-        setItems((cur) => {
-            const arr = [...cur];
-            const tmp = arr[index + 1];
-            arr[index + 1] = arr[index];
-            arr[index] = tmp;
-            return arr;
-        });
-    };
-
-    const addItem = () => {
         if (!newName.trim()) {
             Alert.alert("Nama kosong", "Masukkan nama komponen.");
             return;
         }
+        if (!intervalKm || intervalKm <= 0) {
+            Alert.alert("Interval tidak valid", "Masukkan interval km lebih dari 0.");
+            return;
+        }
 
-        const id = newName
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-");
-        setItems((cur) => [{ id, name: newName.trim(), active: true }, ...cur]);
+        addCustomComponent({ name: newName.trim(), intervalKm });
         setNewName("");
+        setNewIntervalKm("");
         setAdding(false);
-    };
-
-    const handleSave = () => {
-        Alert.alert(
-            "Berhasil",
-            "Perubahan komponen telah berhasil disimpan.",
-            [
-                {
-                    text: "OK",
-                    onPress: () => router.back(),
-                },
-            ],
-            { cancelable: false },
-        );
     };
 
     return (
@@ -150,16 +90,18 @@ export default function ManageDashboard() {
 
             <View style={styles.intro}>
                 <Text style={styles.introText}>
-                    Tarik dan lepaskan untuk mengurutkan, atau gunakan tombol
-                    naik/turun untuk mengubah urutan. Gunakan saklar untuk
-                    menampilkan/menyembunyikan komponen.
+                    Pin komponen untuk ditampilkan di dashboard (maksimal{" "}
+                    {MAX_PINNED}), atau sembunyikan komponen yang tidak relevan.
+                </Text>
+                <Text style={styles.pinnedCount}>
+                    Pinned: {pinnedCount}/{MAX_PINNED}
                 </Text>
             </View>
 
             <View style={styles.controlsRow}>
                 <TouchableOpacity
                     style={styles.addBtn}
-                    onPress={() => setAdding(true)}
+                    onPress={() => setAdding((v) => !v)}
                 >
                     <View style={styles.manageRow}>
                         <Plus
@@ -179,6 +121,17 @@ export default function ManageDashboard() {
                         value={newName}
                         onChangeText={setNewName}
                         style={styles.input}
+                        placeholderTextColor={COLORS.textSecondary}
+                    />
+                    <TextInput
+                        placeholder="Interval km (contoh: 5000)"
+                        value={newIntervalKm}
+                        onChangeText={(text) =>
+                            setNewIntervalKm(text.replace(/[^0-9]/g, ""))
+                        }
+                        keyboardType="number-pad"
+                        style={styles.input}
+                        placeholderTextColor={COLORS.textSecondary}
                     />
                     <View style={styles.addActions}>
                         <TouchableOpacity
@@ -189,7 +142,7 @@ export default function ManageDashboard() {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.smallPrimary}
-                            onPress={addItem}
+                            onPress={handleAddComponent}
                         >
                             <Text style={styles.smallPrimaryText}>Tambah</Text>
                         </TouchableOpacity>
@@ -198,76 +151,53 @@ export default function ManageDashboard() {
             )}
 
             <FlatList
-                data={items}
+                data={components}
                 keyExtractor={(i) => i.id}
                 contentContainerStyle={{ padding: 20 }}
-                renderItem={({ item, index }) => (
+                renderItem={({ item }) => (
                     <View style={styles.row}>
-                        <View style={styles.dragHandle}>
-                            <Text style={styles.dragDots}>⋮⋮</Text>
-                        </View>
-
                         <View style={styles.rowText}>
                             <Text style={styles.rowTitle}>{item.name}</Text>
-                            {item.category && (
-                                <Text style={styles.rowCategory}>
-                                    {item.category}
-                                </Text>
-                            )}
+                            <Text style={styles.rowInterval}>
+                                Setiap {item.intervalKm.toLocaleString("id-ID")} km
+                                {item.isCustom ? " • Custom" : ""}
+                            </Text>
                         </View>
 
                         <View style={styles.rowActions}>
                             <TouchableOpacity
-                                onPress={() => moveUp(index)}
-                                style={styles.iconBtn}
-                            >
-                                <ArrowUp size={18} color={COLORS.textPrimary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => moveDown(index)}
-                                style={styles.iconBtn}
-                            >
-                                <ArrowDown
-                                    size={18}
-                                    color={COLORS.textPrimary}
-                                />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => toggleActive(item.id)}
+                                onPress={() => handleTogglePin(item.id)}
+                                disabled={item.isHidden}
                                 style={[
-                                    styles.toggle,
-                                    item.active
-                                        ? styles.toggleOn
-                                        : styles.toggleOff,
+                                    styles.iconToggle,
+                                    item.isPinned && styles.iconToggleActive,
+                                    item.isHidden && styles.iconToggleDisabled,
                                 ]}
                             >
-                                <View
-                                    style={[
-                                        styles.toggleDot,
-                                        item.active && styles.toggleDotOn,
-                                    ]}
+                                <Pin
+                                    size={16}
+                                    color={
+                                        item.isPinned
+                                            ? COLORS.textPrimary
+                                            : COLORS.textSecondary
+                                    }
+                                    fill={item.isPinned ? COLORS.primary : "none"}
                                 />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => toggleHidden(item.id)}
+                                style={styles.iconToggle}
+                            >
+                                {item.isHidden ? (
+                                    <EyeOff size={16} color={COLORS.textSecondary} />
+                                ) : (
+                                    <Eye size={16} color={COLORS.textPrimary} />
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>
                 )}
             />
-
-            <Animated.View
-                style={{
-                    transform: [{ scale: saveButtonScale }],
-                }}
-            >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    style={styles.saveButton}
-                    onPress={handleSave}
-                    onPressIn={() => animateButton(saveButtonScale, 0.95)}
-                    onPressOut={() => animateButton(saveButtonScale, 1)}
-                >
-                    <Text style={styles.saveButtonText}>SIMPAN PERUBAHAN</Text>
-                </TouchableOpacity>
-            </Animated.View>
         </SafeAreaView>
     );
 }
@@ -294,8 +224,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     title: { fontSize: 20, fontWeight: "800", color: COLORS.textPrimary },
-    intro: { padding: 20 },
+    intro: { padding: 20, gap: 6 },
     introText: { color: COLORS.textSecondary },
+    pinnedCount: { color: COLORS.textPrimary, fontWeight: "800" },
     controlsRow: {
         flexDirection: "row",
         gap: 12,
@@ -317,12 +248,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     addBtnText: { fontWeight: "800", color: COLORS.textPrimary },
-    addBlock: { paddingHorizontal: 20, paddingBottom: 12 },
+    addBlock: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
     input: {
         borderWidth: BORDER_WIDTH.thin,
         borderColor: COLORS.border,
         padding: 10,
-        marginBottom: 8,
     },
     addActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
     smallBtn: {
@@ -347,41 +277,22 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 12,
     },
-    dragHandle: { width: 32, alignItems: "center", justifyContent: "center" },
-    dragDots: { fontSize: 16, color: COLORS.textSecondary },
     rowText: { flex: 1 },
     rowTitle: { fontWeight: "800", color: COLORS.textPrimary },
-    rowCategory: { color: COLORS.textSecondary, fontSize: 12 },
+    rowInterval: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
     rowActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-    iconBtn: { padding: 8 },
-    toggle: {
-        width: 56,
-        height: 28,
-        borderRadius: 14,
+    iconToggle: {
+        width: 36,
+        height: 36,
         borderWidth: BORDER_WIDTH.thin,
         borderColor: COLORS.border,
-        marginLeft: 12,
-        justifyContent: "center",
-        padding: 4,
-    },
-    toggleOn: { backgroundColor: COLORS.secondary },
-    toggleOff: { backgroundColor: COLORS.thirdary },
-    toggleDot: {
-        width: 18,
-        height: 18,
-        borderRadius: 12,
-        backgroundColor: COLORS.surface,
-        alignSelf: "flex-start",
-    },
-    toggleDotOn: { alignSelf: "flex-end", backgroundColor: COLORS.info },
-    saveButton: {
-        backgroundColor: COLORS.primary,
-        borderWidth: BORDER_WIDTH.thick,
-        borderColor: COLORS.border,
-        paddingVertical: 18,
         alignItems: "center",
-        marginBottom: 30,
-        marginHorizontal: 20,
+        justifyContent: "center",
     },
-    saveButtonText: { fontWeight: "800", color: COLORS.textPrimary },
+    iconToggleActive: {
+        backgroundColor: COLORS.primary,
+    },
+    iconToggleDisabled: {
+        opacity: 0.4,
+    },
 });

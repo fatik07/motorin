@@ -9,7 +9,8 @@ import {
 import { Bike, Gauge, Pencil, SlidersVertical } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ComponentCard, NeoBrutalCard, TabsHeader } from "@components/index";
-import type { ComponentWithStatus } from "../../src/types";
+import { withComponentStatus } from "@utils/componentStatus";
+import { useComponentStore } from "@store/useComponentStore";
 import {
     Modal,
     TextInput,
@@ -20,67 +21,14 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
-const primaryComponents: ComponentWithStatus[] = [
-    {
-        id: "oil",
-        motorId: "motor-1",
-        name: "Oli Mesin",
-        category: "engine",
-        status: "critical",
-        installKm: 11950,
-        lifespan: 3000,
-        remainingKm: 500,
-        progressPercentage: 85,
-    },
-    {
-        id: "front-tire",
-        motorId: "motor-1",
-        name: "Ban Depan",
-        category: "tire",
-        status: "good",
-        installKm: 4250,
-        lifespan: 15000,
-        remainingKm: 8200,
-        progressPercentage: 45,
-    },
-    {
-        id: "rear-tire",
-        motorId: "motor-1",
-        name: "Ban Belakang",
-        category: "tire",
-        status: "warning",
-        installKm: 4250,
-        lifespan: 12000,
-        remainingKm: 3400,
-        progressPercentage: 72,
-    },
-    {
-        id: "brake",
-        motorId: "motor-1",
-        name: "Rem",
-        category: "brake",
-        status: "warning",
-        installKm: 8000,
-        lifespan: 10000,
-        remainingKm: 1200,
-        progressPercentage: 88,
-    },
-    {
-        id: "air-filter",
-        motorId: "motor-1",
-        name: "Filter Udara",
-        category: "engine",
-        status: "good",
-        installKm: 7450,
-        lifespan: 10000,
-        remainingKm: 5000,
-        progressPercentage: 50,
-    },
-];
-
 export default function DashboardScreen() {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [kmInput, setKmInput] = useState("");
     const router = useRouter();
+
+    const currentKm = useComponentStore((state) => state.currentKm);
+    const components = useComponentStore((state) => state.components);
+    const setCurrentKm = useComponentStore((state) => state.setCurrentKm);
 
     const closeButtonScale = useRef(new Animated.Value(1)).current;
     const saveButtonScale = useRef(new Animated.Value(1)).current;
@@ -97,10 +45,31 @@ export default function DashboardScreen() {
     const heroData = useMemo(
         () => ({
             name: "Vario Kesayangan",
-            km: "12.450 km",
+            km: `${currentKm.toLocaleString("id-ID")} km`,
         }),
-        [],
+        [currentKm],
     );
+
+    const primaryComponents = useMemo(
+        () =>
+            components
+                .filter((component) => component.isPinned && !component.isHidden)
+                .map((component) => withComponentStatus(component, currentKm)),
+        [components, currentKm],
+    );
+
+    const openUpdateModal = () => {
+        setKmInput("");
+        setShowUpdateModal(true);
+    };
+
+    const handleSaveKm = () => {
+        const parsed = parseInt(kmInput.replace(/[^0-9]/g, ""), 10);
+        if (parsed > 0) {
+            setCurrentKm(parsed);
+        }
+        setShowUpdateModal(false);
+    };
 
     return (
         <ScrollView
@@ -170,7 +139,7 @@ export default function DashboardScreen() {
                                     Kilometer Terakhir
                                 </Text>
                                 <Text style={modalStyles.lastValue}>
-                                    12,450 KM
+                                    {currentKm.toLocaleString("id-ID")} KM
                                 </Text>
                             </View>
 
@@ -185,6 +154,12 @@ export default function DashboardScreen() {
                                         placeholder="000000"
                                         placeholderTextColor={
                                             COLORS.textSecondary
+                                        }
+                                        value={kmInput}
+                                        onChangeText={(text) =>
+                                            setKmInput(
+                                                text.replace(/[^0-9]/g, ""),
+                                            )
                                         }
                                     />
                                     <Text style={modalStyles.inputUnit}>
@@ -201,7 +176,7 @@ export default function DashboardScreen() {
                                 <TouchableOpacity
                                     activeOpacity={1}
                                     style={modalStyles.saveButton}
-                                    onPress={() => setShowUpdateModal(false)}
+                                    onPress={handleSaveKm}
                                     onPressIn={() =>
                                         animateButton(saveButtonScale, 0.95)
                                     }
@@ -246,7 +221,7 @@ export default function DashboardScreen() {
                             <TouchableOpacity
                                 activeOpacity={1}
                                 style={styles.updateButton}
-                                onPress={() => setShowUpdateModal(true)}
+                                onPress={openUpdateModal}
                                 onPressIn={() =>
                                     animateButton(updateButtonScale, 0.95)
                                 }
@@ -276,7 +251,9 @@ export default function DashboardScreen() {
 
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Komponen Utama</Text>
-                    <Text style={styles.sectionSubtitle}>5 item</Text>
+                    <Text style={styles.sectionSubtitle}>
+                        {primaryComponents.length} item
+                    </Text>
                 </View>
 
                 <View style={styles.list}>
@@ -285,12 +262,7 @@ export default function DashboardScreen() {
                             key={component.id}
                             component={component}
                             onPress={() =>
-                                router.push({
-                                    pathname: `/dashboard/${component.id}`,
-                                    params: {
-                                        data: JSON.stringify(component),
-                                    },
-                                })
+                                router.push(`/dashboard/${component.id}`)
                             }
                         />
                     ))}

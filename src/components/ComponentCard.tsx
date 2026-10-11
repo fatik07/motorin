@@ -14,8 +14,8 @@ export default function ComponentCard({
     onPress,
     compact = false,
 }: ComponentCardProps) {
-    const statusColor = getStatusColor(component.status);
-    const progressColor = getProgressColor(component.status);
+    const statusColor = getStatusColor(component.statusLevel);
+    const progressColor = getProgressColor(component.statusLevel);
     const statusText = getStatusText(component.remainingKm);
 
     const CardContainer = onPress ? TouchableOpacity : View;

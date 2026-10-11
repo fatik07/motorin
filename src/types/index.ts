@@ -30,21 +30,37 @@ export interface ServiceRecord {
 }
 
 // Component Types
+export type ComponentStatusLevel = 'safe' | 'warning' | 'overdue';
+
 export interface Component {
   id: string;
   motorId: string;
   name: string;
-  category: 'engine' | 'brake' | 'tire' | 'battery' | 'other';
-  installDate?: string;
-  installKm?: number;
-  lifespan?: number; // in km or days
-  status: 'good' | 'warning' | 'critical';
+  intervalKm: number; // km interval between services
+  lastServiceKm: number; // km at the last service/replacement
+  lastServiceDate?: string;
+  isPinned: boolean;
+  isHidden: boolean;
+  isCustom: boolean;
   notes?: string;
 }
 
 export interface ComponentWithStatus extends Component {
-  remainingKm: number;
-  progressPercentage: number;
+  remainingKm: number; // can be negative when overdue
+  progressPercentage: number; // 0-100, clamped
+  statusLevel: ComponentStatusLevel;
+}
+
+// Service Log Types — "Tandai Sudah Ganti/Servis" (PRD 5.6/5.7)
+export interface ServiceLog {
+  id: string;
+  componentId: string;
+  motorId: string;
+  serviceKm: number;
+  serviceDate: string;
+  notes?: string;
+  brandUsed?: string;
+  cost?: number;
 }
 
 // User Types

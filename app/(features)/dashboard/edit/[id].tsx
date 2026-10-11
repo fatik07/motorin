@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useRef } from "react";
 import {
     View,
     Text,
@@ -13,29 +14,25 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ArrowLeft, Trash2 } from "lucide-react-native";
-import type { ComponentWithStatus } from "../../../../src/types";
+import { useComponentStore } from "@store/useComponentStore";
 
 export default function EditComponentScreen() {
     const router = useRouter();
-    const { data } = useLocalSearchParams<{ data: string }>();
+    const { id } = useLocalSearchParams<{ id: string }>();
     const saveButtonScale = useRef(new Animated.Value(1)).current;
     const deleteButtonScale = useRef(new Animated.Value(1)).current;
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const component: ComponentWithStatus = data
-        ? JSON.parse(data)
-        : {
-              id: "",
-              motorId: "",
-              name: "Unknown",
-              category: "other",
-              status: "good",
-              remainingKm: 0,
-              progressPercentage: 0,
-          };
+    const component = useComponentStore((state) =>
+        state.components.find((c) => c.id === id),
+    );
+    const updateComponentInterval = useComponentStore(
+        (state) => state.updateComponentInterval,
+    );
+    const removeComponent = useComponentStore((state) => state.removeComponent);
 
-    const [lifespan, setLifespan] = useState(
-        (component.lifespan ?? 0).toString(),
+    const [intervalKm, setIntervalKm] = useState(
+        (component?.intervalKm ?? 0).toString(),
     );
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
@@ -49,27 +46,23 @@ export default function EditComponentScreen() {
     const formatNumber = (num: number) =>
         num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-    const parsedLifespan = parseInt(lifespan.replace(/\./g, ""), 10) || 0;
-    const targetKm = (component.installKm ?? 0) + parsedLifespan;
-    const newRemainingKm = Math.max(
-        0,
-        targetKm -
-            (component.installKm ?? 0) -
-            (component.progressPercentage / 100) * (component.lifespan ?? 1),
-    );
+    const parsedIntervalKm = parseInt(intervalKm.replace(/\./g, ""), 10) || 0;
+    const targetKm = (component?.lastServiceKm ?? 0) + parsedIntervalKm;
 
     const handleSave = () => {
-        if (parsedLifespan <= 0) {
+        if (!component) return;
+        if (parsedIntervalKm <= 0) {
             Alert.alert("Error", "Interval ganti harus lebih dari 0 km.");
             return;
         }
-        // TODO: save to database
+        updateComponentInterval(component.id, parsedIntervalKm);
         Alert.alert("Berhasil", "Komponen berhasil diperbarui.", [
-            { text: "OK", onPress: () => router.replace("/dashboard") },
+            { text: "OK", onPress: () => router.back() },
         ]);
     };
 
     const handleDelete = () => {
+        if (!component) return;
         Alert.alert(
             "Hapus Komponen",
             `Yakin ingin menghapus "${component.name}"?`,
@@ -79,7 +72,7 @@ export default function EditComponentScreen() {
                     text: "Hapus",
                     style: "destructive",
                     onPress: () => {
-                        // TODO: delete from database
+                        removeComponent(component.id);
                         router.replace("/dashboard");
                     },
                 },
@@ -87,10 +80,32 @@ export default function EditComponentScreen() {
         );
     };
 
-    const handleLifespanChange = (text: string) => {
+    const handleIntervalKmChange = (text: string) => {
         const cleaned = text.replace(/[^0-9]/g, "");
-        setLifespan(cleaned);
+        setIntervalKm(cleaned);
     };
+
+    if (!component) {
+        return (
+            <SafeAreaView style={styles.safe}>
+                <View style={styles.notFoundContainer}>
+                    <Text style={styles.infoLabel}>
+                        Komponen tidak ditemukan
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                    >
+                        <ArrowLeft
+                            size={20}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.5}
+                        />
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -135,7 +150,7 @@ export default function EditComponentScreen() {
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Terakhir Diganti</Text>
                         <Text style={styles.infoValue}>
-                            {formatNumber(component.installKm ?? 0)} KM
+                            {formatNumber(component.lastServiceKm)} KM
                         </Text>
                     </View>
                 </View>
@@ -152,8 +167,8 @@ export default function EditComponentScreen() {
                             <TextInput
                                 keyboardType="number-pad"
                                 style={styles.input}
-                                value={lifespan}
-                                onChangeText={handleLifespanChange}
+                                value={intervalKm}
+                                onChangeText={handleIntervalKmChange}
                                 placeholder="0"
                                 placeholderTextColor={COLORS.textSecondary}
                             />
@@ -229,6 +244,12 @@ const styles = StyleSheet.create({
     safe: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    notFoundContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
     },
     header: {
         marginTop: 40,

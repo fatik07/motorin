@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     View,
     Text,
@@ -6,64 +6,73 @@ import {
     SafeAreaView,
     TouchableOpacity,
     ScrollView,
+    TextInput,
+    Modal,
+    KeyboardAvoidingView,
+    Platform,
     Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
-import { getStatusColor, getProgressColor } from "@utils/componentStatus";
-import {
-    Pencil,
-    Droplet,
-    Circle,
-    Disc3,
-    Battery,
-    CircleAlert,
-    ArrowLeft,
-} from "lucide-react-native";
-import type { ComponentWithStatus } from "../../../src/types";
-
-const categoryIcons: Record<string, React.ReactNode> = {
-    engine: <Droplet size={32} color={COLORS.textPrimary} strokeWidth={2} />,
-    tire: <Circle size={32} color={COLORS.textPrimary} strokeWidth={2} />,
-    brake: <Disc3 size={32} color={COLORS.textPrimary} strokeWidth={2} />,
-    battery: <Battery size={32} color={COLORS.textPrimary} strokeWidth={2} />,
-    other: <CircleAlert size={32} color={COLORS.textPrimary} strokeWidth={2} />,
-};
+import { getStatusColor, getProgressColor, withComponentStatus } from "@utils/componentStatus";
+import { useComponentStore } from "@store/useComponentStore";
+import { Pencil, Wrench, ArrowLeft, CheckCircle2 } from "lucide-react-native";
 
 const statusLabels: Record<string, string> = {
-    good: "AMAN",
+    safe: "AMAN",
     warning: "WASPADA",
-    critical: "BAHAYA",
+    overdue: "LEWAT BATAS",
 };
 
 const statusDescriptions: Record<string, string> = {
-    good: "Kondisi komponen masih dalam keadaan baik.",
+    safe: "Kondisi komponen masih dalam keadaan baik.",
     warning: "Segera lakukan pengecekan untuk menjaga performa.",
-    critical:
-        "Segera lakukan penggantian untuk menjaga performa mesin tetap optimal.",
+    overdue:
+        "Sudah melewati batas servis. Segera lakukan penggantian untuk menjaga performa mesin tetap optimal.",
 };
+
+const MONTHS_ID = [
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+    "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+];
+
+const formatDateId = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const formatNumber = (num: number) =>
+    Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 export default function ComponentDetailScreen() {
     const router = useRouter();
-    const { data } = useLocalSearchParams<{ data: string }>();
+    const { id } = useLocalSearchParams<{ id: string }>();
     const editButtonScale = useRef(new Animated.Value(1)).current;
+    const serviceButtonScale = useRef(new Animated.Value(1)).current;
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const component: ComponentWithStatus = data
-        ? JSON.parse(data)
-        : {
-              id: "",
-              motorId: "",
-              name: "Unknown",
-              category: "other",
-              status: "good",
-              remainingKm: 0,
-              progressPercentage: 0,
-          };
+    const currentKm = useComponentStore((state) => state.currentKm);
+    const rawComponent = useComponentStore((state) =>
+        state.components.find((c) => c.id === id),
+    );
+    const serviceLogs = useComponentStore((state) =>
+        state.serviceLogs
+            .filter((log) => log.componentId === id)
+            .sort((a, b) => (a.serviceDate < b.serviceDate ? 1 : -1)),
+    );
+    const markServiced = useComponentStore((state) => state.markServiced);
 
-    const statusColor = getStatusColor(component.status);
-    const progressColor = getProgressColor(component.status);
-    const targetKm = (component.installKm ?? 0) + (component.lifespan ?? 0);
+    const [showServiceModal, setShowServiceModal] = useState(false);
+    const [kmInput, setKmInput] = useState("");
+    const [brandInput, setBrandInput] = useState("");
+    const [costInput, setCostInput] = useState("");
+    const [notesInput, setNotesInput] = useState("");
+
+    const component = useMemo(
+        () => (rawComponent ? withComponentStatus(rawComponent, currentKm) : null),
+        [rawComponent, currentKm],
+    );
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -73,8 +82,46 @@ export default function ComponentDetailScreen() {
         }).start();
     };
 
-    const formatNumber = (num: number) =>
-        num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    if (!component) {
+        return (
+            <SafeAreaView style={styles.safe}>
+                <View style={styles.center}>
+                    <Text style={styles.notFound}>Komponen tidak ditemukan</Text>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                    >
+                        <ArrowLeft size={20} color={COLORS.textPrimary} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    const statusColor = getStatusColor(component.statusLevel);
+    const progressColor = getProgressColor(component.statusLevel);
+    const targetKm = component.lastServiceKm + component.intervalKm;
+
+    const openServiceModal = () => {
+        setKmInput(currentKm.toString());
+        setBrandInput("");
+        setCostInput("");
+        setNotesInput("");
+        setShowServiceModal(true);
+    };
+
+    const handleConfirmServiced = () => {
+        const serviceKm = parseInt(kmInput.replace(/[^0-9]/g, ""), 10);
+        if (!serviceKm || serviceKm <= 0) return;
+
+        markServiced(component.id, {
+            serviceKm,
+            brandUsed: brandInput.trim() || undefined,
+            cost: costInput ? parseInt(costInput.replace(/[^0-9]/g, ""), 10) : undefined,
+            notes: notesInput.trim() || undefined,
+        });
+        setShowServiceModal(false);
+    };
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -96,8 +143,28 @@ export default function ComponentDetailScreen() {
                         />
                     </TouchableOpacity>
                 </Animated.View>
-                <Text style={styles.title}>Detail {component.name}</Text>
-                <View style={{ width: 40 }} />
+                <Text style={styles.title} numberOfLines={1}>
+                    Detail {component.name}
+                </Text>
+                <Animated.View
+                    style={{ transform: [{ scale: editButtonScale }] }}
+                >
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() =>
+                            router.push(`/dashboard/edit/${component.id}`)
+                        }
+                        onPressIn={() => animateButton(editButtonScale, 0.9)}
+                        onPressOut={() => animateButton(editButtonScale, 1)}
+                        activeOpacity={1}
+                    >
+                        <Pencil
+                            size={16}
+                            color={COLORS.textPrimary}
+                            strokeWidth={2.5}
+                        />
+                    </TouchableOpacity>
+                </Animated.View>
             </View>
 
             <ScrollView
@@ -124,18 +191,21 @@ export default function ComponentDetailScreen() {
                             ]}
                         >
                             <Text style={styles.heroBadgeText}>
-                                {statusLabels[component.status]}
+                                {statusLabels[component.statusLevel]}
                             </Text>
                         </View>
                     </View>
 
                     <View style={styles.heroBottomRow}>
                         <View style={styles.heroIconBox}>
-                            {categoryIcons[component.category] ??
-                                categoryIcons.other}
+                            <Wrench
+                                size={32}
+                                color={COLORS.textPrimary}
+                                strokeWidth={2}
+                            />
                         </View>
                         <Text style={styles.heroDescription}>
-                            {statusDescriptions[component.status]}
+                            {statusDescriptions[component.statusLevel]}
                         </Text>
                     </View>
                 </View>
@@ -152,7 +222,7 @@ export default function ComponentDetailScreen() {
                                 { color: progressColor },
                             ]}
                         >
-                            {component.progressPercentage}%
+                            {Math.round(component.progressPercentage)}%
                         </Text>
                     </View>
 
@@ -175,7 +245,7 @@ export default function ComponentDetailScreen() {
                     <View style={styles.progressLabels}>
                         <Text style={styles.progressLabelText}>0 km</Text>
                         <Text style={styles.progressLabelText}>
-                            Batas: {formatNumber(component.lifespan ?? 0)} km
+                            Batas: {formatNumber(component.intervalKm)} km
                         </Text>
                     </View>
                 </View>
@@ -187,7 +257,7 @@ export default function ComponentDetailScreen() {
                             Terakhir Diganti
                         </Text>
                         <Text style={styles.infoCardValue}>
-                            {formatNumber(component.installKm ?? 0)}{" "}
+                            {formatNumber(component.lastServiceKm)}{" "}
                             <Text style={styles.infoCardUnit}>km</Text>
                         </Text>
                     </View>
@@ -195,7 +265,7 @@ export default function ComponentDetailScreen() {
                     <View style={styles.infoCard}>
                         <Text style={styles.infoCardLabel}>Ganti Setiap</Text>
                         <Text style={styles.infoCardValue}>
-                            {formatNumber(component.lifespan ?? 0)}{" "}
+                            {formatNumber(component.intervalKm)}{" "}
                             <Text style={styles.infoCardUnit}>km</Text>
                         </Text>
                     </View>
@@ -222,7 +292,9 @@ export default function ComponentDetailScreen() {
                                 { color: COLORS.error },
                             ]}
                         >
-                            Sisa Jarak
+                            {component.remainingKm <= 0
+                                ? "Sudah Lewat"
+                                : "Sisa Jarak"}
                         </Text>
                         <Text
                             style={[
@@ -230,41 +302,192 @@ export default function ComponentDetailScreen() {
                                 { color: COLORS.error },
                             ]}
                         >
-                            {formatNumber(component.remainingKm)}{" "}
+                            {formatNumber(Math.abs(component.remainingKm))}{" "}
                             <Text style={styles.infoCardUnit}>km</Text>
                         </Text>
                     </View>
                 </View>
+
+                {/* Service History */}
+                <View style={styles.historySection}>
+                    <Text style={styles.historyTitle}>RIWAYAT SERVIS</Text>
+
+                    {serviceLogs.length === 0 ? (
+                        <View style={styles.historyEmpty}>
+                            <Text style={styles.historyEmptyText}>
+                                Belum ada riwayat servis untuk komponen ini.
+                            </Text>
+                        </View>
+                    ) : (
+                        serviceLogs.map((log) => (
+                            <View key={log.id} style={styles.historyItem}>
+                                <View style={styles.historyItemHeader}>
+                                    <Text style={styles.historyDate}>
+                                        {formatDateId(log.serviceDate)}
+                                    </Text>
+                                    <Text style={styles.historyKm}>
+                                        {formatNumber(log.serviceKm)} KM
+                                    </Text>
+                                </View>
+                                {(log.brandUsed || log.cost) && (
+                                    <Text style={styles.historyMeta}>
+                                        {[
+                                            log.brandUsed,
+                                            log.cost
+                                                ? `Rp ${formatNumber(log.cost)}`
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" • ")}
+                                    </Text>
+                                )}
+                                {log.notes && (
+                                    <Text style={styles.historyNotes}>
+                                        {log.notes}
+                                    </Text>
+                                )}
+                            </View>
+                        ))
+                    )}
+                </View>
             </ScrollView>
 
-            {/* Edit Button */}
+            {/* Tandai Sudah Ganti/Servis */}
             <Animated.View
                 style={{
-                    transform: [{ scale: editButtonScale }],
+                    transform: [{ scale: serviceButtonScale }],
                 }}
             >
                 <TouchableOpacity
                     activeOpacity={1}
-                    style={styles.editButton}
-                    onPress={() =>
-                        router.push({
-                            pathname: `/dashboard/edit/${component.id}`,
-                            params: { data: JSON.stringify(component) },
-                        })
-                    }
-                    onPressIn={() => animateButton(editButtonScale, 0.95)}
-                    onPressOut={() => animateButton(editButtonScale, 1)}
+                    style={styles.serviceButton}
+                    onPress={openServiceModal}
+                    onPressIn={() => animateButton(serviceButtonScale, 0.95)}
+                    onPressOut={() => animateButton(serviceButtonScale, 1)}
                 >
                     <View style={styles.editRow}>
-                        <Pencil
+                        <CheckCircle2
                             size={18}
                             color={COLORS.textPrimary}
                             strokeWidth={2.4}
                         />
-                        <Text style={styles.editButtonText}>Edit Komponen</Text>
+                        <Text style={styles.serviceButtonText}>
+                            Tandai Sudah Ganti / Servis
+                        </Text>
                     </View>
                 </TouchableOpacity>
             </Animated.View>
+
+            {/* Service Modal */}
+            <Modal
+                visible={showServiceModal}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowServiceModal(false)}
+            >
+                <SafeAreaView style={modalStyles.safe}>
+                    <KeyboardAvoidingView
+                        style={modalStyles.container}
+                        behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    >
+                        <ScrollView
+                            contentContainerStyle={modalStyles.sheet}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            <View style={modalStyles.handle} />
+
+                            <Text style={modalStyles.title}>
+                                TANDAI SUDAH SERVIS
+                            </Text>
+                            <Text style={modalStyles.subtitle}>
+                                {component.name}
+                            </Text>
+
+                            <View style={modalStyles.inputBlock}>
+                                <Text style={modalStyles.inputLabel}>
+                                    KM SAAT PENGGANTIAN
+                                </Text>
+                                <TextInput
+                                    keyboardType="number-pad"
+                                    style={modalStyles.input}
+                                    value={kmInput}
+                                    onChangeText={(text) =>
+                                        setKmInput(text.replace(/[^0-9]/g, ""))
+                                    }
+                                    placeholder="0"
+                                    placeholderTextColor={COLORS.textSecondary}
+                                />
+                            </View>
+
+                            <View style={modalStyles.inputBlock}>
+                                <Text style={modalStyles.inputLabel}>
+                                    MEREK / PRODUK (OPSIONAL)
+                                </Text>
+                                <TextInput
+                                    style={modalStyles.input}
+                                    value={brandInput}
+                                    onChangeText={setBrandInput}
+                                    placeholder="Contoh: Shell Advance"
+                                    placeholderTextColor={COLORS.textSecondary}
+                                />
+                            </View>
+
+                            <View style={modalStyles.inputBlock}>
+                                <Text style={modalStyles.inputLabel}>
+                                    BIAYA (OPSIONAL)
+                                </Text>
+                                <TextInput
+                                    keyboardType="number-pad"
+                                    style={modalStyles.input}
+                                    value={costInput}
+                                    onChangeText={(text) =>
+                                        setCostInput(text.replace(/[^0-9]/g, ""))
+                                    }
+                                    placeholder="0"
+                                    placeholderTextColor={COLORS.textSecondary}
+                                />
+                            </View>
+
+                            <View style={modalStyles.inputBlock}>
+                                <Text style={modalStyles.inputLabel}>
+                                    CATATAN (OPSIONAL)
+                                </Text>
+                                <TextInput
+                                    style={[modalStyles.input, modalStyles.inputMultiline]}
+                                    value={notesInput}
+                                    onChangeText={setNotesInput}
+                                    placeholder="Contoh: nama bengkel, kondisi komponen, dll."
+                                    placeholderTextColor={COLORS.textSecondary}
+                                    multiline
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={[
+                                    modalStyles.saveButton,
+                                    !kmInput && modalStyles.saveButtonDisabled,
+                                ]}
+                                onPress={handleConfirmServiced}
+                                disabled={!kmInput}
+                            >
+                                <Text style={modalStyles.saveButtonText}>
+                                    SIMPAN
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={modalStyles.cancelButton}
+                                onPress={() => setShowServiceModal(false)}
+                            >
+                                <Text style={modalStyles.cancelButtonText}>
+                                    Batal
+                                </Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </KeyboardAvoidingView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -273,6 +496,17 @@ const styles = StyleSheet.create({
     safe: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    center: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+    },
+    notFound: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: COLORS.textPrimary,
     },
     header: {
         marginTop: 40,
@@ -294,7 +528,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     title: {
-        fontSize: 20,
+        flex: 1,
+        textAlign: "center",
+        marginHorizontal: 8,
+        fontSize: 18,
         fontWeight: "800",
         color: COLORS.textPrimary,
     },
@@ -505,8 +742,65 @@ const styles = StyleSheet.create({
         fontWeight: "400",
     },
 
-    // Edit Button
-    editButton: {
+    // History
+    historySection: {
+        backgroundColor: COLORS.surface,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 20,
+        shadowColor: COLORS.border,
+        shadowOffset: { width: SHADOW_OFFSET, height: SHADOW_OFFSET },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 4,
+        gap: 12,
+    },
+    historyTitle: {
+        fontSize: 14,
+        fontWeight: "900",
+        letterSpacing: 1,
+        color: COLORS.textSecondary,
+    },
+    historyEmpty: {
+        paddingVertical: 8,
+    },
+    historyEmptyText: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+    },
+    historyItem: {
+        borderTopWidth: BORDER_WIDTH.thin,
+        borderTopColor: COLORS.border,
+        paddingTop: 12,
+        gap: 4,
+    },
+    historyItemHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    historyDate: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: COLORS.textPrimary,
+    },
+    historyKm: {
+        fontSize: 13,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+    },
+    historyMeta: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: COLORS.textSecondary,
+    },
+    historyNotes: {
+        fontSize: 13,
+        color: COLORS.textPrimary,
+        lineHeight: 18,
+    },
+
+    // Service Button (primary CTA)
+    serviceButton: {
         backgroundColor: COLORS.primary,
         borderWidth: BORDER_WIDTH.thick,
         borderColor: COLORS.border,
@@ -526,11 +820,100 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 10,
     },
-    editButtonText: {
+    serviceButtonText: {
         fontSize: 16,
         fontWeight: "800",
         color: COLORS.textPrimary,
         textTransform: "uppercase",
         letterSpacing: 0.5,
+    },
+});
+
+const modalStyles = StyleSheet.create({
+    safe: {
+        flex: 1,
+        justifyContent: "flex-end",
+        backgroundColor: "rgba(0,0,0,0.4)",
+    },
+    container: {
+        justifyContent: "flex-end",
+    },
+    sheet: {
+        backgroundColor: COLORS.background,
+        borderTopWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 20,
+        paddingBottom: 32,
+        gap: 14,
+    },
+    handle: {
+        width: 48,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: COLORS.border,
+        alignSelf: "center",
+        marginBottom: 4,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: "900",
+        color: COLORS.textPrimary,
+        textAlign: "center",
+    },
+    subtitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: COLORS.textSecondary,
+        textAlign: "center",
+        marginBottom: 4,
+    },
+    inputBlock: {
+        gap: 6,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: COLORS.textPrimary,
+        letterSpacing: 0.5,
+    },
+    input: {
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 16,
+        fontWeight: "600",
+        color: COLORS.textPrimary,
+        backgroundColor: COLORS.surface,
+    },
+    inputMultiline: {
+        minHeight: 70,
+        textAlignVertical: "top",
+    },
+    saveButton: {
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        paddingVertical: 16,
+        alignItems: "center",
+        marginTop: 4,
+    },
+    saveButtonDisabled: {
+        opacity: 0.5,
+    },
+    saveButtonText: {
+        fontSize: 15,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+        letterSpacing: 0.5,
+    },
+    cancelButton: {
+        alignItems: "center",
+        paddingVertical: 10,
+    },
+    cancelButtonText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: COLORS.textSecondary,
     },
 });
