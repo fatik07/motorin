@@ -17,6 +17,7 @@ import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { getStatusColor, getProgressColor, withComponentStatus } from "@utils/componentStatus";
 import { formatDateId } from "@utils/date";
 import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
 import { useSettingsStore } from "@store/useSettingsStore";
 import { Pencil, Wrench, ArrowLeft, CheckCircle2, BellOff } from "lucide-react-native";
 
@@ -43,9 +44,12 @@ export default function ComponentDetailScreen() {
     const serviceButtonScale = useRef(new Animated.Value(1)).current;
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const currentKm = useComponentStore((state) => state.currentKm);
     const rawComponent = useComponentStore((state) =>
         state.components.find((c) => c.id === id),
+    );
+    const currentKm = useMotorStore(
+        (state) =>
+            state.motors.find((m) => m.id === rawComponent?.motorId)?.currentKm ?? 0,
     );
     const serviceLogs = useComponentStore((state) =>
         state.serviceLogs

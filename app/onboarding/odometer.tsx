@@ -9,20 +9,37 @@ import {
     NeoBrutalCard,
     StepFooter,
 } from "@components/index";
+import { useMotorStore } from "@store/useMotorStore";
+import type { Motor } from "../../src/types";
 
 export default function OdometerScreen() {
     const router = useRouter();
-    const { fuel } = useLocalSearchParams<{ fuel?: string }>();
+    const { motorName, fuel, transmission } = useLocalSearchParams<{
+        motorName: string;
+        fuel?: string;
+        transmission?: string;
+    }>();
+    const addMotor = useMotorStore((state) => state.addMotor);
     const [odometer, setOdometer] = useState("");
     const isElectric = fuel === "listrik";
     const currentStep = isElectric ? 3 : 4;
     const totalSteps = isElectric ? 3 : 4;
 
     const handleFinish = () => {
-        if (odometer.trim()) {
-            // TODO: Save all data and navigate to dashboard
-            router.replace("/(tabs)/dashboard");
-        }
+        const currentKm = parseInt(odometer.replace(/\./g, ""), 10);
+        if (Number.isNaN(currentKm) || !motorName) return;
+
+        addMotor({
+            name: motorName,
+            fuelType: isElectric ? "listrik" : "bensin",
+            transmission: isElectric
+                ? null
+                : ((transmission as Motor["transmission"]) ?? "matic"),
+            currentKm,
+        });
+
+        router.dismissAll();
+        router.replace("/(tabs)/dashboard");
     };
 
     const formatNumber = (text: string) => {

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -9,18 +9,165 @@ import {
     Image,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Plus } from "lucide-react-native";
+import { Plus, Bike } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { TabsHeader } from "@components/index";
-import { GARAGE_MOTORS } from "@constants/motors";
+import { useMotorStore } from "@store/useMotorStore";
+import { useComponentStore } from "@store/useComponentStore";
+import { useSettingsStore } from "@store/useSettingsStore";
+import { withComponentStatus } from "@utils/componentStatus";
+import type { Motor } from "../../src/types";
+
+const formatKm = (km: number) => `${km.toLocaleString("id-ID")} km`;
+
+function useMotorHealth(motor: Motor) {
+    const components = useComponentStore((state) => state.components);
+    const notificationThresholdKm = useSettingsStore(
+        (state) => state.notificationThresholdKm,
+    );
+
+    return useMemo(() => {
+        const motorComponents = components.filter(
+            (c) => c.motorId === motor.id && !c.isHidden,
+        );
+        if (motorComponents.length === 0) return null;
+
+        const withStatus = motorComponents
+            .map((c) => withComponentStatus(c, motor.currentKm, notificationThresholdKm))
+            .sort((a, b) => a.remainingKm - b.remainingKm);
+
+        return withStatus[0];
+    }, [components, motor.id, motor.currentKm, notificationThresholdKm]);
+}
+
+function MotorCard({
+    motor,
+    isActive,
+    scale,
+    onPress,
+    onPressIn,
+    onPressOut,
+}: {
+    motor: Motor;
+    isActive: boolean;
+    scale: Animated.Value;
+    onPress: () => void;
+    onPressIn: () => void;
+    onPressOut: () => void;
+}) {
+    const mostUrgent = useMotorHealth(motor);
+
+    return (
+        <Animated.View style={{ transform: [{ scale }] }}>
+            <TouchableOpacity
+                activeOpacity={1}
+                onPressIn={onPressIn}
+                onPressOut={onPressOut}
+                onPress={onPress}
+            >
+                <View style={styles.card}>
+                    {/* IMAGE */}
+                    <View style={styles.imageBox}>
+                        {motor.photoUri ? (
+                            <Image
+                                source={{ uri: motor.photoUri }}
+                                style={styles.image}
+                            />
+                        ) : (
+                            <View style={styles.imagePlaceholder}>
+                                <Bike size={48} color={COLORS.textSecondary} />
+                            </View>
+                        )}
+
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>
+                                {motor.fuelType === "listrik" ? "LISTRIK" : "BENSIN"}
+                            </Text>
+                        </View>
+
+                        {isActive && (
+                            <View style={styles.activeBadge}>
+                                <Text style={styles.activeBadgeText}>AKTIF</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* CONTENT */}
+                    <View style={styles.body}>
+                        <View style={styles.headerRow}>
+                            <Text style={styles.name}>{motor.name}</Text>
+                        </View>
+
+                        {/* INFO */}
+                        <View style={styles.grid}>
+                            <View style={styles.box}>
+                                <Text style={styles.label}>Odometer</Text>
+                                <Text style={styles.value}>
+                                    {formatKm(motor.currentKm)}
+                                </Text>
+                            </View>
+
+                            <View style={[styles.box, styles.boxAccent]}>
+                                <Text
+                                    style={[styles.label, { color: COLORS.primary }]}
+                                >
+                                    Transmisi
+                                </Text>
+                                <Text
+                                    style={[styles.value, { color: COLORS.primary }]}
+                                >
+                                    {motor.fuelType === "listrik"
+                                        ? "Listrik"
+                                        : motor.transmission === "manual"
+                                          ? "Manual"
+                                          : "Matic"}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* PROGRESS: komponen paling mendesak */}
+                        {mostUrgent && (
+                            <View style={{ marginTop: 12 }}>
+                                <View style={styles.progressHeader}>
+                                    <Text style={styles.label} numberOfLines={1}>
+                                        {mostUrgent.name}
+                                    </Text>
+                                    <Text style={styles.label}>
+                                        {Math.round(mostUrgent.progressPercentage)}%
+                                    </Text>
+                                </View>
+
+                                <View style={styles.progressBar}>
+                                    <View
+                                        style={[
+                                            styles.progressFill,
+                                            {
+                                                width: `${Math.min(100, mostUrgent.progressPercentage)}%`,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </TouchableOpacity>
+        </Animated.View>
+    );
+}
 
 export default function GarageScreen() {
     const router = useRouter();
-    const MOTORS = GARAGE_MOTORS;
+    const motors = useMotorStore((state) => state.motors);
+    const activeMotorId = useMotorStore((state) => state.activeMotorId);
 
-    // ✅ FIX: per-card animation (bukan shared)
-    const scales = useRef(MOTORS.map(() => new Animated.Value(1))).current;
+    const scales = useRef(new Map<string, Animated.Value>()).current;
     const fabScale = useRef(new Animated.Value(1)).current;
+
+    const getScale = (id: string) => {
+        if (!scales.has(id)) scales.set(id, new Animated.Value(1));
+        return scales.get(id)!;
+    };
 
     const animate = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -43,127 +190,36 @@ export default function GarageScreen() {
             >
                 {/* TITLE */}
                 <View style={{ marginBottom: 16 }}>
-                    <Text style={styles.title}>My Garage</Text>
+                    <Text style={styles.title}>Garasi Saya</Text>
                     <Text style={styles.subtitle}>
-                        You have {MOTORS.length} vehicles active.
+                        Kamu punya {motors.length} motor terdaftar.
                     </Text>
                 </View>
 
                 {/* MOTOR LIST */}
-                <View style={{ gap: 16 }}>
-                    {MOTORS.map((motor, index) => (
-                        <Animated.View
-                            key={motor.id}
-                            style={{
-                                transform: [{ scale: scales[index] }],
-                            }}
-                        >
-                            <TouchableOpacity
-                                activeOpacity={1}
-                                onPressIn={() => animate(scales[index], 0.97)}
-                                onPressOut={() => animate(scales[index], 1)}
-                                onPress={() =>
-                                    router.push(`/garage/${motor.id}`)
-                                }
-                            >
-                                <View style={styles.card}>
-                                    {/* IMAGE */}
-                                    <View style={styles.imageBox}>
-                                        <Image
-                                            source={{
-                                                uri: motor.image,
-                                            }}
-                                            style={styles.image}
-                                        />
-
-                                        <View style={styles.badge}>
-                                            <Text style={styles.badgeText}>
-                                                {motor.type}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* CONTENT */}
-                                    <View style={styles.body}>
-                                        <View style={styles.headerRow}>
-                                            <View>
-                                                <Text style={styles.brand}>
-                                                    {motor.brand}
-                                                </Text>
-                                                <Text style={styles.name}>
-                                                    {motor.name}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        {/* INFO */}
-                                        <View style={styles.grid}>
-                                            <View style={styles.box}>
-                                                <Text style={styles.label}>
-                                                    Odometer
-                                                </Text>
-                                                <Text style={styles.value}>
-                                                    {motor.odometer}
-                                                </Text>
-                                            </View>
-
-                                            <View
-                                                style={[
-                                                    styles.box,
-                                                    styles.boxAccent,
-                                                ]}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.label,
-                                                        {
-                                                            color: COLORS.primary,
-                                                        },
-                                                    ]}
-                                                >
-                                                    Last Service
-                                                </Text>
-                                                <Text
-                                                    style={[
-                                                        styles.value,
-                                                        {
-                                                            color: COLORS.primary,
-                                                        },
-                                                    ]}
-                                                >
-                                                    {motor.lastService}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        {/* PROGRESS */}
-                                        <View style={{ marginTop: 12 }}>
-                                            <View style={styles.progressHeader}>
-                                                <Text style={styles.label}>
-                                                    {motor.progressLabel}
-                                                </Text>
-                                                <Text style={styles.label}>
-                                                    {motor.progress}%
-                                                </Text>
-                                            </View>
-
-                                            <View style={styles.progressBar}>
-                                                <View
-                                                    style={[
-                                                        styles.progressFill,
-                                                        {
-                                                            width: `${motor.progress}%`,
-                                                        },
-                                                    ]}
-                                                />
-                                            </View>
-                                        </View>
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
-                        </Animated.View>
-                    ))}
-                </View>
+                {motors.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Bike size={40} color={COLORS.textSecondary} />
+                        <Text style={styles.emptyText}>
+                            Belum ada motor. Tambahkan motor pertamamu lewat
+                            tombol + di bawah.
+                        </Text>
+                    </View>
+                ) : (
+                    <View style={{ gap: 16 }}>
+                        {motors.map((motor) => (
+                            <MotorCard
+                                key={motor.id}
+                                motor={motor}
+                                isActive={motor.id === activeMotorId}
+                                scale={getScale(motor.id)}
+                                onPressIn={() => animate(getScale(motor.id), 0.97)}
+                                onPressOut={() => animate(getScale(motor.id), 1)}
+                                onPress={() => router.push(`/garage/${motor.id}`)}
+                            />
+                        ))}
+                    </View>
+                )}
             </ScrollView>
 
             {/* FAB */}
@@ -216,6 +272,20 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
 
+    emptyState: {
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        paddingVertical: 60,
+    },
+
+    emptyText: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        textAlign: "center",
+        maxWidth: 260,
+    },
+
     /* CARD */
     card: {
         backgroundColor: COLORS.surface,
@@ -231,6 +301,14 @@ const styles = StyleSheet.create({
     image: {
         width: "100%",
         height: "100%",
+    },
+
+    imagePlaceholder: {
+        width: "100%",
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f3f4f6",
     },
 
     badge: {
@@ -250,18 +328,29 @@ const styles = StyleSheet.create({
         color: COLORS.textPrimary,
     },
 
+    activeBadge: {
+        position: "absolute",
+        top: 12,
+        left: 12,
+        backgroundColor: COLORS.green,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+    },
+
+    activeBadgeText: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+    },
+
     body: {
         padding: 16,
     },
 
     headerRow: {
         marginBottom: 12,
-    },
-
-    brand: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.textSecondary,
     },
 
     name: {
@@ -303,6 +392,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         marginBottom: 6,
+        gap: 8,
     },
 
     progressBar: {

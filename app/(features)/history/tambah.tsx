@@ -15,14 +15,21 @@ import { ArrowLeft, Check } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { NeoBrutalCard } from "@components/index";
 import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
 
 export default function AddServiceScreen() {
     const router = useRouter();
 
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const components = useComponentStore((state) => state.components);
-    const currentKm = useComponentStore((state) => state.currentKm);
+    const activeMotor = useMotorStore((state) =>
+        state.motors.find((m) => m.id === state.activeMotorId),
+    );
+    const allComponents = useComponentStore((state) => state.components);
+    const components = allComponents.filter(
+        (c) => c.motorId === activeMotor?.id,
+    );
+    const currentKm = activeMotor?.currentKm ?? 0;
     const markServiced = useComponentStore((state) => state.markServiced);
 
     const [componentId, setComponentId] = useState<string | null>(null);

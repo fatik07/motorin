@@ -26,7 +26,7 @@ import {
     useSettingsStore,
     NOTIFICATION_THRESHOLD_OPTIONS,
 } from "@store/useSettingsStore";
-import { ACTIVE_MOTOR_ID, ACTIVE_MOTOR_NAME } from "@constants/activeMotor";
+import { useMotorStore } from "@store/useMotorStore";
 
 export default function SettingsScreen() {
     const router = useRouter();
@@ -34,6 +34,7 @@ export default function SettingsScreen() {
     const itemScale = useRef(new Animated.Value(1)).current;
     const logoutScale = useRef(new Animated.Value(1)).current;
 
+    const motors = useMotorStore((state) => state.motors);
     const notificationThresholdKm = useSettingsStore(
         (state) => state.notificationThresholdKm,
     );
@@ -42,7 +43,6 @@ export default function SettingsScreen() {
     );
     const mutedMotorIds = useSettingsStore((state) => state.mutedMotorIds);
     const toggleMuteMotor = useSettingsStore((state) => state.toggleMuteMotor);
-    const isActiveMotorMuted = mutedMotorIds.includes(ACTIVE_MOTOR_ID);
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -162,30 +162,40 @@ export default function SettingsScreen() {
 
                     <View style={styles.notifDivider} />
 
-                    <View style={styles.muteMotorRow}>
-                        <View style={styles.muteMotorText}>
-                            <Text style={styles.notifLabel}>
-                                MUTE NOTIFIKASI MOTOR
-                            </Text>
-                            <Text style={styles.notifHint}>
-                                {ACTIVE_MOTOR_NAME}
-                            </Text>
-                        </View>
-                        <TouchableOpacity
-                            style={[
-                                styles.muteToggle,
-                                isActiveMotorMuted && styles.muteToggleActive,
-                            ]}
-                            onPress={() => toggleMuteMotor(ACTIVE_MOTOR_ID)}
-                            activeOpacity={0.8}
-                        >
-                            {isActiveMotorMuted ? (
-                                <BellOff size={18} color={COLORS.textSecondary} />
-                            ) : (
-                                <Bell size={18} color={COLORS.textPrimary} />
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    <Text style={styles.notifLabel}>MUTE NOTIFIKASI MOTOR</Text>
+                    {motors.length === 0 ? (
+                        <Text style={styles.notifHint}>Belum ada motor.</Text>
+                    ) : (
+                        motors.map((motor) => {
+                            const isMuted = mutedMotorIds.includes(motor.id);
+                            return (
+                                <View key={motor.id} style={styles.muteMotorRow}>
+                                    <View style={styles.muteMotorText}>
+                                        <Text style={styles.notifHint}>
+                                            {motor.name}
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.muteToggle,
+                                            isMuted && styles.muteToggleActive,
+                                        ]}
+                                        onPress={() => toggleMuteMotor(motor.id)}
+                                        activeOpacity={0.8}
+                                    >
+                                        {isMuted ? (
+                                            <BellOff
+                                                size={18}
+                                                color={COLORS.textSecondary}
+                                            />
+                                        ) : (
+                                            <Bell size={18} color={COLORS.textPrimary} />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            );
+                        })
+                    )}
 
                     <TouchableOpacity
                         style={styles.manageComponentsLink}
@@ -420,6 +430,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
+        marginTop: 10,
     },
     muteMotorText: {
         flex: 1,

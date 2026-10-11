@@ -14,12 +14,19 @@ import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { Pin, Eye, EyeOff, Bell, BellOff, Plus, ArrowLeft } from "lucide-react-native";
 import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
 
 const MAX_PINNED = 5;
 
 export default function ManageDashboard() {
     const router = useRouter();
-    const components = useComponentStore((state) => state.components);
+    const activeMotor = useMotorStore((state) =>
+        state.motors.find((m) => m.id === state.activeMotorId),
+    );
+    const allComponents = useComponentStore((state) => state.components);
+    const components = allComponents.filter(
+        (c) => c.motorId === activeMotor?.id,
+    );
     const togglePin = useComponentStore((state) => state.togglePin);
     const toggleHidden = useComponentStore((state) => state.toggleHidden);
     const toggleMuteComponent = useComponentStore(
@@ -56,6 +63,7 @@ export default function ManageDashboard() {
     };
 
     const handleAddComponent = () => {
+        if (!activeMotor) return;
         const intervalKm = parseInt(newIntervalKm.replace(/[^0-9]/g, ""), 10);
 
         if (!newName.trim()) {
@@ -67,7 +75,12 @@ export default function ManageDashboard() {
             return;
         }
 
-        addCustomComponent({ name: newName.trim(), intervalKm });
+        addCustomComponent({
+            motorId: activeMotor.id,
+            name: newName.trim(),
+            intervalKm,
+            lastServiceKm: activeMotor.currentKm,
+        });
         setNewName("");
         setNewIntervalKm("");
         setAdding(false);

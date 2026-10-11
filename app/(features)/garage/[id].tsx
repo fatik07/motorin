@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -10,16 +10,39 @@ import {
     Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Gauge, Wrench } from "lucide-react-native";
+import { ArrowLeft, Bike, Gauge, CheckCircle2 } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
-import { GARAGE_MOTORS } from "@constants/motors";
+import { useMotorStore } from "@store/useMotorStore";
+import { useComponentStore } from "@store/useComponentStore";
+import { useSettingsStore } from "@store/useSettingsStore";
+import { withComponentStatus } from "@utils/componentStatus";
+
+const formatKm = (km: number) => `${km.toLocaleString("id-ID")} km`;
 
 export default function GarageMotorDetailScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const motor = GARAGE_MOTORS.find((m) => m.id === id);
+    const motor = useMotorStore((state) =>
+        state.motors.find((m) => m.id === id),
+    );
+    const activeMotorId = useMotorStore((state) => state.activeMotorId);
+    const setActiveMotor = useMotorStore((state) => state.setActiveMotor);
+    const components = useComponentStore((state) => state.components);
+    const notificationThresholdKm = useSettingsStore(
+        (state) => state.notificationThresholdKm,
+    );
+
+    const isActive = motor?.id === activeMotorId;
+
+    const motorComponents = useMemo(() => {
+        if (!motor) return [];
+        return components
+            .filter((c) => c.motorId === motor.id && !c.isHidden)
+            .map((c) => withComponentStatus(c, motor.currentKm, notificationThresholdKm))
+            .sort((a, b) => a.remainingKm - b.remainingKm);
+    }, [components, motor, notificationThresholdKm]);
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -77,50 +100,89 @@ export default function GarageMotorDetailScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.imageBox}>
-                    <Image source={{ uri: motor.image }} style={styles.image} />
+                    {motor.photoUri ? (
+                        <Image source={{ uri: motor.photoUri }} style={styles.image} />
+                    ) : (
+                        <View style={styles.imagePlaceholder}>
+                            <Bike size={56} color={COLORS.textSecondary} />
+                        </View>
+                    )}
                     <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{motor.type}</Text>
+                        <Text style={styles.badgeText}>
+                            {motor.fuelType === "listrik" ? "LISTRIK" : "BENSIN"}
+                        </Text>
                     </View>
                 </View>
 
                 <View style={styles.infoCard}>
-                    <Text style={styles.brand}>{motor.brand}</Text>
                     <Text style={styles.name}>{motor.name}</Text>
 
                     <View style={styles.grid}>
                         <View style={styles.box}>
                             <Gauge size={16} color={COLORS.textSecondary} />
                             <Text style={styles.label}>Odometer</Text>
-                            <Text style={styles.value}>{motor.odometer}</Text>
+                            <Text style={styles.value}>
+                                {formatKm(motor.currentKm)}
+                            </Text>
                         </View>
 
                         <View style={[styles.box, styles.boxAccent]}>
-                            <Wrench size={16} color={COLORS.primary} />
                             <Text style={[styles.label, { color: COLORS.primary }]}>
-                                {motor.type === "ELECTRIC"
-                                    ? "Status Baterai"
-                                    : "Servis Terakhir"}
+                                Transmisi
                             </Text>
                             <Text style={[styles.value, { color: COLORS.primary }]}>
-                                {motor.lastService}
+                                {motor.fuelType === "listrik"
+                                    ? "Listrik"
+                                    : motor.transmission === "manual"
+                                      ? "Manual"
+                                      : "Matic"}
                             </Text>
                         </View>
                     </View>
 
-                    <View style={{ marginTop: 16 }}>
-                        <View style={styles.progressHeader}>
-                            <Text style={styles.label}>{motor.progressLabel}</Text>
-                            <Text style={styles.label}>{motor.progress}%</Text>
-                        </View>
-                        <View style={styles.progressBar}>
-                            <View
-                                style={[
-                                    styles.progressFill,
-                                    { width: `${motor.progress}%` },
-                                ]}
+                    {!isActive && (
+                        <TouchableOpacity
+                            style={styles.activateButton}
+                            onPress={() => setActiveMotor(motor.id)}
+                            activeOpacity={0.85}
+                        >
+                            <CheckCircle2
+                                size={18}
+                                color={COLORS.textPrimary}
+                                strokeWidth={2.4}
                             />
+                            <Text style={styles.activateButtonText}>
+                                Jadikan Motor Aktif
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    {isActive && (
+                        <View style={styles.activeNotice}>
+                            <Text style={styles.activeNoticeText}>
+                                Motor ini sedang aktif di Dashboard
+                            </Text>
                         </View>
-                    </View>
+                    )}
+                </View>
+
+                <View style={styles.componentsCard}>
+                    <Text style={styles.sectionTitle}>
+                        KOMPONEN ({motorComponents.length})
+                    </Text>
+                    {motorComponents.length === 0 ? (
+                        <Text style={styles.emptyText}>Belum ada komponen.</Text>
+                    ) : (
+                        motorComponents.map((c) => (
+                            <View key={c.id} style={styles.componentRow}>
+                                <Text style={styles.componentName}>{c.name}</Text>
+                                <Text style={styles.componentKm}>
+                                    {c.remainingKm <= 0
+                                        ? `Lewat ${formatKm(Math.abs(c.remainingKm))}`
+                                        : `Sisa ${formatKm(c.remainingKm)}`}
+                                </Text>
+                            </View>
+                        ))
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -193,6 +255,13 @@ const styles = StyleSheet.create({
         width: "100%",
         height: "100%",
     },
+    imagePlaceholder: {
+        width: "100%",
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f3f4f6",
+    },
     badge: {
         position: "absolute",
         top: 12,
@@ -218,17 +287,12 @@ const styles = StyleSheet.create({
         shadowOpacity: 1,
         shadowRadius: 0,
         elevation: 4,
-    },
-    brand: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.textSecondary,
+        gap: 16,
     },
     name: {
         fontSize: 22,
         fontWeight: "900",
         color: COLORS.textPrimary,
-        marginBottom: 16,
     },
     grid: {
         flexDirection: "row",
@@ -254,19 +318,71 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: COLORS.textPrimary,
     },
-    progressHeader: {
+    activateButton: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 6,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        paddingVertical: 14,
     },
-    progressBar: {
-        height: 10,
+    activateButtonText: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+        textTransform: "uppercase",
+    },
+    activeNotice: {
+        backgroundColor: "#ecfdf5",
         borderWidth: BORDER_WIDTH.thin,
         borderColor: COLORS.border,
-        backgroundColor: "#eee",
+        padding: 12,
+        alignItems: "center",
     },
-    progressFill: {
-        height: "100%",
-        backgroundColor: COLORS.primary,
+    activeNoticeText: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: COLORS.success,
+    },
+    componentsCard: {
+        backgroundColor: COLORS.surface,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 20,
+        shadowColor: COLORS.border,
+        shadowOffset: { width: SHADOW_OFFSET, height: SHADOW_OFFSET },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 4,
+        gap: 10,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: "900",
+        letterSpacing: 1,
+        color: COLORS.textSecondary,
+    },
+    emptyText: {
+        fontSize: 13,
+        color: COLORS.textSecondary,
+    },
+    componentRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        borderTopWidth: BORDER_WIDTH.thin,
+        borderTopColor: COLORS.border,
+        paddingTop: 10,
+    },
+    componentName: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: COLORS.textPrimary,
+    },
+    componentKm: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: COLORS.textSecondary,
     },
 });

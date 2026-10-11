@@ -20,8 +20,8 @@ import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ComponentCard, NeoBrutalCard, TabsHeader } from "@components/index";
 import { withComponentStatus, getStatusText } from "@utils/componentStatus";
 import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
 import { useSettingsStore } from "@store/useSettingsStore";
-import { ACTIVE_MOTOR_NAME } from "@constants/activeMotor";
 import {
     Modal,
     TextInput,
@@ -39,13 +39,21 @@ export default function DashboardScreen() {
     const [showOtherComponents, setShowOtherComponents] = useState(false);
     const router = useRouter();
 
-    const currentKm = useComponentStore((state) => state.currentKm);
-    const components = useComponentStore((state) => state.components);
-    const setCurrentKm = useComponentStore((state) => state.setCurrentKm);
+    const activeMotor = useMotorStore((state) =>
+        state.motors.find((m) => m.id === state.activeMotorId),
+    );
+    const updateMotorKm = useMotorStore((state) => state.updateMotorKm);
+    const allComponents = useComponentStore((state) => state.components);
     const togglePin = useComponentStore((state) => state.togglePin);
     const toggleHidden = useComponentStore((state) => state.toggleHidden);
     const notificationThresholdKm = useSettingsStore(
         (state) => state.notificationThresholdKm,
+    );
+
+    const currentKm = activeMotor?.currentKm ?? 0;
+    const components = useMemo(
+        () => allComponents.filter((c) => c.motorId === activeMotor?.id),
+        [allComponents, activeMotor?.id],
     );
 
     const closeButtonScale = useRef(new Animated.Value(1)).current;
@@ -62,10 +70,10 @@ export default function DashboardScreen() {
 
     const heroData = useMemo(
         () => ({
-            name: ACTIVE_MOTOR_NAME,
+            name: activeMotor?.name ?? "Motor",
             km: `${currentKm.toLocaleString("id-ID")} km`,
         }),
-        [currentKm],
+        [activeMotor?.name, currentKm],
     );
 
     const primaryComponents = useMemo(
@@ -105,11 +113,28 @@ export default function DashboardScreen() {
 
     const handleSaveKm = () => {
         const parsed = parseInt(kmInput.replace(/[^0-9]/g, ""), 10);
-        if (parsed > 0) {
-            setCurrentKm(parsed);
+        if (parsed > 0 && activeMotor) {
+            updateMotorKm(activeMotor.id, parsed);
         }
         setShowUpdateModal(false);
     };
+
+    if (!activeMotor) {
+        return (
+            <View style={styles.noMotorContainer}>
+                <Bike size={40} color={COLORS.textSecondary} />
+                <Text style={styles.noMotorText}>
+                    Belum ada motor aktif. Tambahkan motor di tab Garage.
+                </Text>
+                <TouchableOpacity
+                    style={styles.noMotorButton}
+                    onPress={() => router.push("/garage")}
+                >
+                    <Text style={styles.noMotorButtonText}>Ke Garage</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     return (
         <ScrollView
@@ -435,6 +460,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    noMotorContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+        padding: 20,
+        backgroundColor: COLORS.background,
+    },
+    noMotorText: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        textAlign: "center",
+    },
+    noMotorButton: {
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+    },
+    noMotorButtonText: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
     },
     contentContainer: {
         paddingBottom: 50,

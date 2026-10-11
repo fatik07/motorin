@@ -1,13 +1,43 @@
 import { View, Text, StyleSheet, Animated, Image } from "react-native";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import LogoImage from "@components/LogoImage";
+import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
+import { useSettingsStore } from "@store/useSettingsStore";
+
+const allStoresHydrated = () =>
+    useComponentStore.persist.hasHydrated() &&
+    useMotorStore.persist.hasHydrated() &&
+    useSettingsStore.persist.hasHydrated();
+
+function useStoresHydrated() {
+    const [hydrated, setHydrated] = useState(allStoresHydrated);
+
+    useEffect(() => {
+        if (hydrated) return;
+        const check = () => {
+            if (allStoresHydrated()) setHydrated(true);
+        };
+        const unsubs = [
+            useComponentStore.persist.onFinishHydration(check),
+            useMotorStore.persist.onFinishHydration(check),
+            useSettingsStore.persist.onFinishHydration(check),
+        ];
+        check();
+        return () => unsubs.forEach((unsub) => unsub());
+    }, [hydrated]);
+
+    return hydrated;
+}
 
 export default function IndexScreen() {
     const router = useRouter();
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
+    const hydrated = useStoresHydrated();
+    const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
     useEffect(() => {
         // Fade in animation
@@ -24,13 +54,16 @@ export default function IndexScreen() {
             }),
         ]).start();
 
-        // Navigate to onboarding after 2.5 seconds
-        const timer = setTimeout(() => {
-            router.replace("/onboarding");
-        }, 2500);
-
+        const timer = setTimeout(() => setMinSplashElapsed(true), 1500);
         return () => clearTimeout(timer);
     }, []);
+
+    useEffect(() => {
+        if (!hydrated || !minSplashElapsed) return;
+
+        const hasMotors = useMotorStore.getState().motors.length > 0;
+        router.replace(hasMotors ? "/(tabs)/dashboard" : "/onboarding");
+    }, [hydrated, minSplashElapsed, router]);
 
     return (
         <View style={styles.container}>

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Fuel, Zap } from "lucide-react-native";
 import { COLORS } from "@constants/theme";
 import {
@@ -12,19 +12,25 @@ import {
 
 export default function FuelTypeScreen() {
     const router = useRouter();
+    const { motorName } = useLocalSearchParams<{ motorName: string }>();
     const [selectedFuel, setSelectedFuel] = useState<
         "bensin" | "listrik" | null
     >(null);
 
     const handleNext = () => {
         if (selectedFuel) {
-            // TODO: Save to state/context
             if (selectedFuel === "listrik") {
-                router.push("/onboarding/odometer?fuel=listrik");
+                router.push({
+                    pathname: "/onboarding/odometer",
+                    params: { motorName, fuel: "listrik" },
+                });
                 return;
             }
 
-            router.push("/onboarding/transmission-type?fuel=bensin");
+            router.push({
+                pathname: "/onboarding/transmission-type",
+                params: { motorName, fuel: "bensin" },
+            });
         }
     };
 

@@ -12,15 +12,22 @@ import { Gauge, FileText, ArrowRight, Plus } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { NeoBrutalCard, TabsHeader } from "@components/index";
 import { useComponentStore } from "@store/useComponentStore";
+import { useMotorStore } from "@store/useMotorStore";
 import { formatDateId } from "@utils/date";
 import type { ServiceLog } from "../../src/types";
 
-type HistoryEntry = ServiceLog & { componentName: string };
+type HistoryEntry = ServiceLog & { componentName: string; motorName: string };
 
 const formatNumber = (num: number) =>
     Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-function ServiceCard({ entry }: { entry: HistoryEntry }) {
+function ServiceCard({
+    entry,
+    showMotorName,
+}: {
+    entry: HistoryEntry;
+    showMotorName: boolean;
+}) {
     const router = useRouter();
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,6 +59,7 @@ function ServiceCard({ entry }: { entry: HistoryEntry }) {
                             <View style={styles.cardHeaderLeft}>
                                 <Text style={styles.cardDate}>
                                     {formatDateId(entry.serviceDate)}
+                                    {showMotorName ? ` • ${entry.motorName}` : ""}
                                 </Text>
                                 <Text style={styles.cardTitle}>
                                     {entry.componentName.toUpperCase()}
@@ -125,7 +133,9 @@ export default function HistoryScreen() {
     const router = useRouter();
     const serviceLogs = useComponentStore((state) => state.serviceLogs);
     const components = useComponentStore((state) => state.components);
-    const [activeFilterId, setActiveFilterId] = useState("all");
+    const motors = useMotorStore((state) => state.motors);
+    const [motorFilterId, setMotorFilterId] = useState("all");
+    const [componentFilterId, setComponentFilterId] = useState("all");
     const fabScale = useRef(new Animated.Value(1)).current;
 
     const animateFab = (toValue: number) => {
@@ -144,28 +154,56 @@ export default function HistoryScreen() {
                     componentName:
                         components.find((c) => c.id === log.componentId)
                             ?.name ?? "Komponen Dihapus",
+                    motorName:
+                        motors.find((m) => m.id === log.motorId)?.name ??
+                        "Motor Dihapus",
                 }))
                 .sort((a, b) => (a.serviceDate < b.serviceDate ? 1 : -1)),
-        [serviceLogs, components],
+        [serviceLogs, components, motors],
     );
 
-    const filterOptions = useMemo(() => {
+    const motorFilterOptions = useMemo(() => {
         const seen = new Map<string, string>();
         entries.forEach((entry) => {
+            if (!seen.has(entry.motorId)) {
+                seen.set(entry.motorId, entry.motorName);
+            }
+        });
+        return [
+            { id: "all", label: "Semua Motor" },
+            ...Array.from(seen, ([id, label]) => ({ id, label })),
+        ];
+    }, [entries]);
+
+    const motorFilteredEntries =
+        motorFilterId === "all"
+            ? entries
+            : entries.filter((entry) => entry.motorId === motorFilterId);
+
+    const componentFilterOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        motorFilteredEntries.forEach((entry) => {
             if (!seen.has(entry.componentId)) {
                 seen.set(entry.componentId, entry.componentName);
             }
         });
         return [
-            { id: "all", label: "Semua" },
+            { id: "all", label: "Semua Komponen" },
             ...Array.from(seen, ([id, label]) => ({ id, label })),
         ];
-    }, [entries]);
+    }, [motorFilteredEntries]);
 
     const filteredEntries =
-        activeFilterId === "all"
-            ? entries
-            : entries.filter((entry) => entry.componentId === activeFilterId);
+        componentFilterId === "all"
+            ? motorFilteredEntries
+            : motorFilteredEntries.filter(
+                  (entry) => entry.componentId === componentFilterId,
+              );
+
+    const handleMotorFilterChange = (id: string) => {
+        setMotorFilterId(id);
+        setComponentFilterId("all");
+    };
 
     return (
         <View style={styles.container}>
@@ -178,14 +216,50 @@ export default function HistoryScreen() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Filter Chips */}
+                {/* Motor Filter Chips (only relevant when there's more than one motor) */}
+                {motors.length > 1 && (
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.filterContainer}
+                    >
+                        {motorFilterOptions.map((option) => {
+                            const isActive = motorFilterId === option.id;
+                            return (
+                                <TouchableOpacity
+                                    key={option.id}
+                                    activeOpacity={0.8}
+                                    style={[
+                                        styles.filterChip,
+                                        isActive && styles.filterChipActive,
+                                    ]}
+                                    onPress={() => handleMotorFilterChange(option.id)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.filterChipText,
+                                            isActive && styles.filterChipTextActive,
+                                        ]}
+                                    >
+                                        {option.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                )}
+
+                {/* Component Filter Chips */}
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.filterContainer}
+                    contentContainerStyle={[
+                        styles.filterContainer,
+                        motors.length > 1 && { paddingTop: 0 },
+                    ]}
                 >
-                    {filterOptions.map((option) => {
-                        const isActive = activeFilterId === option.id;
+                    {componentFilterOptions.map((option) => {
+                        const isActive = componentFilterId === option.id;
                         return (
                             <TouchableOpacity
                                 key={option.id}
@@ -194,7 +268,7 @@ export default function HistoryScreen() {
                                     styles.filterChip,
                                     isActive && styles.filterChipActive,
                                 ]}
-                                onPress={() => setActiveFilterId(option.id)}
+                                onPress={() => setComponentFilterId(option.id)}
                             >
                                 <Text
                                     style={[
@@ -216,7 +290,11 @@ export default function HistoryScreen() {
                             <View style={styles.timelineLine} />
 
                             {filteredEntries.map((entry) => (
-                                <ServiceCard key={entry.id} entry={entry} />
+                                <ServiceCard
+                                    key={entry.id}
+                                    entry={entry}
+                                    showMotorName={motors.length > 1}
+                                />
                             ))}
                         </>
                     ) : (

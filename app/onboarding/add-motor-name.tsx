@@ -16,8 +16,10 @@ export default function AddMotorNameScreen() {
 
     const handleNext = () => {
         if (motorName.trim()) {
-            // TODO: Save to state/context
-            router.push("/onboarding/fuel-type");
+            router.push({
+                pathname: "/onboarding/fuel-type",
+                params: { motorName: motorName.trim() },
+            });
         }
     };
 

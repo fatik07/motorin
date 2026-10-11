@@ -12,15 +12,24 @@ import {
 
 export default function TransmissionTypeScreen() {
     const router = useRouter();
-    const { fuel } = useLocalSearchParams<{ fuel?: string }>();
+    const { motorName, fuel } = useLocalSearchParams<{
+        motorName: string;
+        fuel?: string;
+    }>();
     const [selectedTransmission, setSelectedTransmission] = useState<
         "manual" | "matic" | null
     >(null);
 
     const handleNext = () => {
         if (selectedTransmission) {
-            // TODO: Save to state/context
-            router.push(`/onboarding/odometer?fuel=${fuel ?? "bensin"}`);
+            router.push({
+                pathname: "/onboarding/odometer",
+                params: {
+                    motorName,
+                    fuel: fuel ?? "bensin",
+                    transmission: selectedTransmission,
+                },
+            });
         }
     };
 

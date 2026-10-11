@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { sqliteJSONStorage } from './sqliteStorage';
 
 // PRD 5.8: ambang notifikasi, default 200km, bisa diubah ke 100/300/500.
 export const NOTIFICATION_THRESHOLD_OPTIONS = [100, 200, 300, 500] as const;
@@ -12,19 +14,28 @@ interface SettingsStoreState {
   isMotorMuted: (motorId: string) => boolean;
 }
 
-export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
-  notificationThresholdKm: DEFAULT_NOTIFICATION_THRESHOLD_KM,
-  mutedMotorIds: [],
+export const useSettingsStore = create<SettingsStoreState>()(
+  persist(
+    (set, get) => ({
+      notificationThresholdKm: DEFAULT_NOTIFICATION_THRESHOLD_KM,
+      mutedMotorIds: [],
 
-  setNotificationThreshold: (km) => set({ notificationThresholdKm: km }),
+      setNotificationThreshold: (km) => set({ notificationThresholdKm: km }),
 
-  toggleMuteMotor: (motorId) => {
-    set((state) => ({
-      mutedMotorIds: state.mutedMotorIds.includes(motorId)
-        ? state.mutedMotorIds.filter((id) => id !== motorId)
-        : [...state.mutedMotorIds, motorId],
-    }));
-  },
+      toggleMuteMotor: (motorId) => {
+        set((state) => ({
+          mutedMotorIds: state.mutedMotorIds.includes(motorId)
+            ? state.mutedMotorIds.filter((id) => id !== motorId)
+            : [...state.mutedMotorIds, motorId],
+        }));
+      },
 
-  isMotorMuted: (motorId) => get().mutedMotorIds.includes(motorId),
-}));
+      isMotorMuted: (motorId) => get().mutedMotorIds.includes(motorId),
+    }),
+    {
+      name: 'motor-track/settings',
+      storage: sqliteJSONStorage,
+      version: 1,
+    },
+  ),
+);

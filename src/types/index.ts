@@ -10,23 +10,14 @@ export interface Motor {
   model?: string;
   year?: number;
   plateNumber?: string;
-  lastServiceKm?: number;
-  lastServiceDate?: string;
-  nextServiceKm?: number;
-  oilChangeIntervalKm?: number;
 }
 
-// Service Record Types
-export interface ServiceRecord {
+// Km Update Log — PRD 5.5: "Riwayat update km tersimpan"
+export interface KmLog {
   id: string;
   motorId: string;
-  date: string;
-  km: number;
-  type: 'oil_change' | 'general_service' | 'repair' | 'inspection';
-  description?: string;
-  cost?: number;
-  location?: string;
-  notes?: string;
+  kmValue: number;
+  loggedAt: string;
 }
 
 // Component Types
