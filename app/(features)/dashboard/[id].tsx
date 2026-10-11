@@ -15,6 +15,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { getStatusColor, getProgressColor, withComponentStatus } from "@utils/componentStatus";
+import { formatDateId } from "@utils/date";
 import { useComponentStore } from "@store/useComponentStore";
 import { useSettingsStore } from "@store/useSettingsStore";
 import { Pencil, Wrench, ArrowLeft, CheckCircle2, BellOff } from "lucide-react-native";
@@ -30,17 +31,6 @@ const statusDescriptions: Record<string, string> = {
     warning: "Segera lakukan pengecekan untuk menjaga performa.",
     overdue:
         "Sudah melewati batas servis. Segera lakukan penggantian untuk menjaga performa mesin tetap optimal.",
-};
-
-const MONTHS_ID = [
-    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-    "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
-];
-
-const formatDateId = (iso: string) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
 };
 
 const formatNumber = (num: number) =>

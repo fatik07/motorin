@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     View,
     Text,
@@ -11,55 +11,16 @@ import { useRouter } from "expo-router";
 import { Gauge, FileText, ArrowRight, Plus } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { NeoBrutalCard, TabsHeader } from "@components/index";
+import { useComponentStore } from "@store/useComponentStore";
+import { formatDateId } from "@utils/date";
+import type { ServiceLog } from "../../src/types";
 
-type ServiceRecord = {
-    id: string;
-    date: string;
-    title: string;
-    odometer: string;
-    description: string;
-    cost: string;
-    status: "SELESAI" | "LAMA";
-    category: "Oli" | "Ban" | "Mesin" | "Lainnya";
-};
+type HistoryEntry = ServiceLog & { componentName: string };
 
-const SERVICE_RECORDS: ServiceRecord[] = [
-    {
-        id: "1",
-        date: "12 Okt 2023",
-        title: "Oli Mesin",
-        odometer: "10.000 km",
-        description: "Castrol Power1 10W-40",
-        cost: "Rp 150.000",
-        status: "SELESAI",
-        category: "Oli",
-    },
-    {
-        id: "2",
-        date: "05 Sep 2023",
-        title: "Ban Belakang",
-        odometer: "9.200 km",
-        description: "Michelin Pilot Street",
-        cost: "Rp 450.000",
-        status: "SELESAI",
-        category: "Ban",
-    },
-    {
-        id: "3",
-        date: "10 Jul 2023",
-        title: "Servis Rutin",
-        odometer: "7.500 km",
-        description: "Tune-up & Bersihkan CVT",
-        cost: "Rp 200.000",
-        status: "LAMA",
-        category: "Mesin",
-    },
-];
+const formatNumber = (num: number) =>
+    Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-const FILTER_TABS = ["Semua", "Oli", "Ban", "Mesin", "Cvt", "Lainnya"] as const;
-type FilterTab = (typeof FILTER_TABS)[number];
-
-function ServiceCard({ record }: { record: ServiceRecord }) {
+function ServiceCard({ entry }: { entry: HistoryEntry }) {
     const router = useRouter();
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -71,17 +32,10 @@ function ServiceCard({ record }: { record: ServiceRecord }) {
         }).start();
     };
 
-    const isOld = record.status === "LAMA";
-
     return (
         <View style={styles.cardWrapper}>
             {/* Timeline dot */}
-            <View
-                style={[
-                    styles.timelineDot,
-                    isOld ? styles.timelineDotOld : styles.timelineDotActive,
-                ]}
-            />
+            <View style={styles.timelineDot} />
 
             <Animated.View
                 style={{ transform: [{ scale: scaleAnim }], flex: 1 }}
@@ -90,38 +44,17 @@ function ServiceCard({ record }: { record: ServiceRecord }) {
                     activeOpacity={1}
                     onPressIn={() => animateButton(0.97)}
                     onPressOut={() => animateButton(1)}
-                    onPress={() => router.push(`/history/${record.id}`)}
+                    onPress={() => router.push(`/history/${entry.id}`)}
                 >
-                    <NeoBrutalCard
-                        style={[styles.card, isOld && styles.cardOld]}
-                    >
+                    <NeoBrutalCard style={styles.card}>
                         {/* Card Header */}
                         <View style={styles.cardHeader}>
                             <View style={styles.cardHeaderLeft}>
                                 <Text style={styles.cardDate}>
-                                    {record.date}
+                                    {formatDateId(entry.serviceDate)}
                                 </Text>
                                 <Text style={styles.cardTitle}>
-                                    {record.title.toUpperCase()}
-                                </Text>
-                            </View>
-                            <View
-                                style={[
-                                    styles.statusBadge,
-                                    isOld
-                                        ? styles.statusBadgeOld
-                                        : styles.statusBadgeDone,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.statusText,
-                                        isOld
-                                            ? styles.statusTextOld
-                                            : styles.statusTextDone,
-                                    ]}
-                                >
-                                    {record.status}
+                                    {entry.componentName.toUpperCase()}
                                 </Text>
                             </View>
                         </View>
@@ -138,26 +71,38 @@ function ServiceCard({ record }: { record: ServiceRecord }) {
                                     strokeWidth={2.5}
                                 />
                                 <Text style={styles.infoText}>
-                                    {record.odometer}
+                                    {formatNumber(entry.serviceKm)} km
                                 </Text>
                             </View>
-                            <View style={styles.infoRow}>
-                                <FileText
-                                    size={18}
-                                    color={COLORS.primary}
-                                    strokeWidth={2.5}
-                                />
-                                <Text
-                                    style={[styles.infoText, styles.infoItalic]}
-                                >
-                                    {record.description}
-                                </Text>
-                            </View>
+                            {(entry.brandUsed || entry.notes) && (
+                                <View style={styles.infoRow}>
+                                    <FileText
+                                        size={18}
+                                        color={COLORS.primary}
+                                        strokeWidth={2.5}
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.infoText,
+                                            styles.infoItalic,
+                                        ]}
+                                        numberOfLines={1}
+                                    >
+                                        {[entry.brandUsed, entry.notes]
+                                            .filter(Boolean)
+                                            .join(" • ")}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         {/* Card Footer */}
                         <View style={styles.cardFooter}>
-                            <Text style={styles.costText}>{record.cost}</Text>
+                            <Text style={styles.costText}>
+                                {entry.cost
+                                    ? `Rp ${formatNumber(entry.cost)}`
+                                    : ""}
+                            </Text>
                             <View style={styles.detailButton}>
                                 <Text style={styles.detailButtonText}>
                                     DETAIL
@@ -178,7 +123,9 @@ function ServiceCard({ record }: { record: ServiceRecord }) {
 
 export default function HistoryScreen() {
     const router = useRouter();
-    const [activeFilter, setActiveFilter] = useState<FilterTab>("Semua");
+    const serviceLogs = useComponentStore((state) => state.serviceLogs);
+    const components = useComponentStore((state) => state.components);
+    const [activeFilterId, setActiveFilterId] = useState("all");
     const fabScale = useRef(new Animated.Value(1)).current;
 
     const animateFab = (toValue: number) => {
@@ -189,10 +136,36 @@ export default function HistoryScreen() {
         }).start();
     };
 
-    const filteredRecords =
-        activeFilter === "Semua"
-            ? SERVICE_RECORDS
-            : SERVICE_RECORDS.filter((r) => r.category === activeFilter);
+    const entries: HistoryEntry[] = useMemo(
+        () =>
+            serviceLogs
+                .map((log) => ({
+                    ...log,
+                    componentName:
+                        components.find((c) => c.id === log.componentId)
+                            ?.name ?? "Komponen Dihapus",
+                }))
+                .sort((a, b) => (a.serviceDate < b.serviceDate ? 1 : -1)),
+        [serviceLogs, components],
+    );
+
+    const filterOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        entries.forEach((entry) => {
+            if (!seen.has(entry.componentId)) {
+                seen.set(entry.componentId, entry.componentName);
+            }
+        });
+        return [
+            { id: "all", label: "Semua" },
+            ...Array.from(seen, ([id, label]) => ({ id, label })),
+        ];
+    }, [entries]);
+
+    const filteredEntries =
+        activeFilterId === "all"
+            ? entries
+            : entries.filter((entry) => entry.componentId === activeFilterId);
 
     return (
         <View style={styles.container}>
@@ -211,17 +184,17 @@ export default function HistoryScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.filterContainer}
                 >
-                    {FILTER_TABS.map((tab) => {
-                        const isActive = activeFilter === tab;
+                    {filterOptions.map((option) => {
+                        const isActive = activeFilterId === option.id;
                         return (
                             <TouchableOpacity
-                                key={tab}
+                                key={option.id}
                                 activeOpacity={0.8}
                                 style={[
                                     styles.filterChip,
                                     isActive && styles.filterChipActive,
                                 ]}
-                                onPress={() => setActiveFilter(tab)}
+                                onPress={() => setActiveFilterId(option.id)}
                             >
                                 <Text
                                     style={[
@@ -229,7 +202,7 @@ export default function HistoryScreen() {
                                         isActive && styles.filterChipTextActive,
                                     ]}
                                 >
-                                    {tab}
+                                    {option.label}
                                 </Text>
                             </TouchableOpacity>
                         );
@@ -238,18 +211,18 @@ export default function HistoryScreen() {
 
                 {/* Timeline List */}
                 <View style={styles.timeline}>
-                    {filteredRecords.length > 0 ? (
+                    {filteredEntries.length > 0 ? (
                         <>
                             <View style={styles.timelineLine} />
 
-                            {filteredRecords.map((record) => (
-                                <ServiceCard key={record.id} record={record} />
+                            {filteredEntries.map((entry) => (
+                                <ServiceCard key={entry.id} entry={entry} />
                             ))}
                         </>
                     ) : (
                         <View style={styles.emptyState}>
                             <Text style={styles.emptyText}>
-                                Tidak ada riwayat servis.
+                                Belum ada riwayat servis.
                             </Text>
                         </View>
                     )}
@@ -367,19 +340,11 @@ const styles = StyleSheet.create({
         marginTop: 22,
         marginLeft: 1.5,
         flexShrink: 0,
-    },
-    timelineDotActive: {
         backgroundColor: COLORS.primary,
-    },
-    timelineDotOld: {
-        backgroundColor: COLORS.border,
     },
     card: {
         backgroundColor: COLORS.surface,
         padding: 16,
-    },
-    cardOld: {
-        opacity: 0.75,
     },
     cardHeader: {
         flexDirection: "row",
@@ -401,29 +366,6 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: COLORS.textPrimary,
         letterSpacing: 0.3,
-    },
-    statusBadge: {
-        borderWidth: BORDER_WIDTH.thick,
-        borderColor: COLORS.border,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-    },
-    statusBadgeDone: {
-        backgroundColor: "#6dfe9c",
-    },
-    statusBadgeOld: {
-        backgroundColor: "#d0c6ab",
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: "800",
-        letterSpacing: 0.5,
-    },
-    statusTextDone: {
-        color: "#007439",
-    },
-    statusTextOld: {
-        color: COLORS.textSecondary,
     },
     divider: {
         height: BORDER_WIDTH.thin,

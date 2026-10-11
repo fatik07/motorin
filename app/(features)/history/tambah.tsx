@@ -10,23 +10,26 @@ import {
     Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Check } from "lucide-react-native";
 
-import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
+import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { NeoBrutalCard } from "@components/index";
+import { useComponentStore } from "@store/useComponentStore";
 
 export default function AddServiceScreen() {
     const router = useRouter();
 
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
-    const [form, setForm] = useState({
-        title: "",
-        date: "",
-        odometer: "",
-        description: "",
-        cost: "",
-    });
+    const components = useComponentStore((state) => state.components);
+    const currentKm = useComponentStore((state) => state.currentKm);
+    const markServiced = useComponentStore((state) => state.markServiced);
+
+    const [componentId, setComponentId] = useState<string | null>(null);
+    const [kmInput, setKmInput] = useState(currentKm.toString());
+    const [brandInput, setBrandInput] = useState("");
+    const [costInput, setCostInput] = useState("");
+    const [notesInput, setNotesInput] = useState("");
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -37,10 +40,22 @@ export default function AddServiceScreen() {
     };
 
     const handleSave = () => {
-        if (!form.title || !form.date) {
-            Alert.alert("Error", "Nama servis dan tanggal wajib diisi");
+        if (!componentId) {
+            Alert.alert("Error", "Pilih komponen yang diservis terlebih dahulu.");
             return;
         }
+        const serviceKm = parseInt(kmInput.replace(/[^0-9]/g, ""), 10);
+        if (!serviceKm || serviceKm <= 0) {
+            Alert.alert("Error", "Masukkan km yang valid.");
+            return;
+        }
+
+        markServiced(componentId, {
+            serviceKm,
+            brandUsed: brandInput.trim() || undefined,
+            cost: costInput ? parseInt(costInput.replace(/[^0-9]/g, ""), 10) : undefined,
+            notes: notesInput.trim() || undefined,
+        });
 
         Alert.alert("Sukses", "Data servis berhasil disimpan", [
             {
@@ -82,54 +97,80 @@ export default function AddServiceScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <NeoBrutalCard>
-                    <Text style={styles.label}>Nama Servis</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Ganti Oli Mesin"
-                        value={form.title}
-                        onChangeText={(t) => setForm({ ...form, title: t })}
-                    />
+                    <Text style={styles.label}>Komponen</Text>
+                    <View style={styles.pickerList}>
+                        {components.map((component) => {
+                            const selected = component.id === componentId;
+                            return (
+                                <TouchableOpacity
+                                    key={component.id}
+                                    style={[
+                                        styles.pickerRow,
+                                        selected && styles.pickerRowSelected,
+                                    ]}
+                                    onPress={() => setComponentId(component.id)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.pickerRowText}>
+                                        {component.name}
+                                    </Text>
+                                    {selected && (
+                                        <Check
+                                            size={16}
+                                            color={COLORS.textPrimary}
+                                            strokeWidth={3}
+                                        />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
                 </NeoBrutalCard>
 
                 <NeoBrutalCard>
-                    <Text style={styles.label}>Tanggal</Text>
+                    <Text style={styles.label}>Km Saat Penggantian</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="12 Okt 2023"
-                        value={form.date}
-                        onChangeText={(t) => setForm({ ...form, date: t })}
-                    />
-                </NeoBrutalCard>
-
-                <NeoBrutalCard>
-                    <Text style={styles.label}>Odometer</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="10.000 km"
-                        value={form.odometer}
-                        onChangeText={(t) => setForm({ ...form, odometer: t })}
-                    />
-                </NeoBrutalCard>
-
-                <NeoBrutalCard>
-                    <Text style={styles.label}>Deskripsi</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Detail servis"
-                        value={form.description}
+                        placeholder="10000"
+                        keyboardType="number-pad"
+                        value={kmInput}
                         onChangeText={(t) =>
-                            setForm({ ...form, description: t })
+                            setKmInput(t.replace(/[^0-9]/g, ""))
                         }
                     />
                 </NeoBrutalCard>
 
                 <NeoBrutalCard>
-                    <Text style={styles.label}>Biaya</Text>
+                    <Text style={styles.label}>Merek / Produk (Opsional)</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="Rp 150.000"
-                        value={form.cost}
-                        onChangeText={(t) => setForm({ ...form, cost: t })}
+                        placeholder="Castrol Power1 10W-40"
+                        value={brandInput}
+                        onChangeText={setBrandInput}
+                    />
+                </NeoBrutalCard>
+
+                <NeoBrutalCard>
+                    <Text style={styles.label}>Biaya (Opsional)</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="150000"
+                        keyboardType="number-pad"
+                        value={costInput}
+                        onChangeText={(t) =>
+                            setCostInput(t.replace(/[^0-9]/g, ""))
+                        }
+                    />
+                </NeoBrutalCard>
+
+                <NeoBrutalCard>
+                    <Text style={styles.label}>Catatan (Opsional)</Text>
+                    <TextInput
+                        style={[styles.input, styles.inputMultiline]}
+                        placeholder="Nama bengkel, kondisi komponen, dll."
+                        value={notesInput}
+                        onChangeText={setNotesInput}
+                        multiline
                     />
                 </NeoBrutalCard>
 
@@ -200,6 +241,36 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: COLORS.textPrimary,
         backgroundColor: COLORS.surface,
+    },
+
+    inputMultiline: {
+        minHeight: 70,
+        textAlignVertical: "top",
+    },
+
+    pickerList: {
+        gap: 8,
+    },
+
+    pickerRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderWidth: BORDER_WIDTH.thin,
+        borderColor: COLORS.border,
+        padding: 12,
+        backgroundColor: COLORS.surface,
+    },
+
+    pickerRowSelected: {
+        backgroundColor: COLORS.primary,
+        borderWidth: BORDER_WIDTH.thick,
+    },
+
+    pickerRowText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: COLORS.textPrimary,
     },
 
     saveButton: {

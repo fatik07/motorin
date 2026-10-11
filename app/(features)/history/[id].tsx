@@ -10,58 +10,13 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
-import {
-    ArrowLeft,
-    Gauge,
-    FileText,
-    Wallet,
-    Calendar,
-} from "lucide-react-native";
+import { ArrowLeft, Gauge, FileText, Wallet, Calendar } from "lucide-react-native";
 import NeoBrutalCard from "@components/NeoBrutalCard";
+import { useComponentStore } from "@store/useComponentStore";
+import { formatDateId } from "@utils/date";
 
-type ServiceRecord = {
-    id: string;
-    date: string;
-    title: string;
-    odometer: string;
-    description: string;
-    cost: string;
-    status: "SELESAI" | "LAMA";
-    category: "Oli" | "Ban" | "Mesin" | "Lainnya";
-};
-
-const SERVICE_RECORDS: ServiceRecord[] = [
-    {
-        id: "1",
-        date: "12 Okt 2023",
-        title: "Oli Mesin",
-        odometer: "10.000 km",
-        description: "Castrol Power1 10W-40",
-        cost: "Rp 150.000",
-        status: "SELESAI",
-        category: "Oli",
-    },
-    {
-        id: "2",
-        date: "05 Sep 2023",
-        title: "Ban Belakang",
-        odometer: "9.200 km",
-        description: "Michelin Pilot Street",
-        cost: "Rp 450.000",
-        status: "SELESAI",
-        category: "Ban",
-    },
-    {
-        id: "3",
-        date: "10 Jul 2023",
-        title: "Servis Rutin",
-        odometer: "7.500 km",
-        description: "Tune-up & Bersihkan CVT",
-        cost: "Rp 200.000",
-        status: "LAMA",
-        category: "Mesin",
-    },
-];
+const formatNumber = (num: number) =>
+    Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 export default function HistoryDetailScreen() {
     const router = useRouter();
@@ -77,9 +32,14 @@ export default function HistoryDetailScreen() {
         }).start();
     };
 
-    const record = SERVICE_RECORDS.find((item) => item.id === id);
+    const log = useComponentStore((state) =>
+        state.serviceLogs.find((item) => item.id === id),
+    );
+    const component = useComponentStore((state) =>
+        state.components.find((c) => c.id === log?.componentId),
+    );
 
-    if (!record) {
+    if (!log) {
         return (
             <SafeAreaView style={styles.safe}>
                 <View style={styles.center}>
@@ -88,8 +48,6 @@ export default function HistoryDetailScreen() {
             </SafeAreaView>
         );
     }
-
-    const isDone = record.status === "SELESAI";
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -127,24 +85,7 @@ export default function HistoryDetailScreen() {
                 <View style={styles.heroCard}>
                     <Text style={styles.heroLabel}>RIWAYAT SERVIS</Text>
                     <Text style={styles.heroName}>
-                        {record.title.toUpperCase()}
-                    </Text>
-
-                    <View
-                        style={[
-                            styles.heroBadge,
-                            {
-                                backgroundColor: isDone ? "#6dfe9c" : "#d0c6ab",
-                            },
-                        ]}
-                    >
-                        <Text style={styles.heroBadgeText}>
-                            {record.status}
-                        </Text>
-                    </View>
-
-                    <Text style={styles.heroDescription}>
-                        {record.description}
+                        {(component?.name ?? "Komponen Dihapus").toUpperCase()}
                     </Text>
                 </View>
 
@@ -153,25 +94,33 @@ export default function HistoryDetailScreen() {
                     <View style={styles.infoCard}>
                         <Calendar size={18} color={COLORS.primary} />
                         <Text style={styles.infoLabel}>Tanggal</Text>
-                        <Text style={styles.infoValue}>{record.date}</Text>
+                        <Text style={styles.infoValue}>
+                            {formatDateId(log.serviceDate)}
+                        </Text>
                     </View>
 
                     <View style={styles.infoCard}>
                         <Gauge size={18} color={COLORS.primary} />
                         <Text style={styles.infoLabel}>Odometer</Text>
-                        <Text style={styles.infoValue}>{record.odometer}</Text>
+                        <Text style={styles.infoValue}>
+                            {formatNumber(log.serviceKm)} km
+                        </Text>
                     </View>
 
                     <View style={styles.infoCard}>
                         <FileText size={18} color={COLORS.primary} />
-                        <Text style={styles.infoLabel}>Kategori</Text>
-                        <Text style={styles.infoValue}>{record.category}</Text>
+                        <Text style={styles.infoLabel}>Merek/Produk</Text>
+                        <Text style={styles.infoValue}>
+                            {log.brandUsed ?? "-"}
+                        </Text>
                     </View>
 
                     <View style={[styles.infoCard, styles.costCard]}>
                         <Wallet size={18} color={COLORS.textPrimary} />
                         <Text style={styles.infoLabel}>Biaya</Text>
-                        <Text style={styles.costValue}>{record.cost}</Text>
+                        <Text style={styles.costValue}>
+                            {log.cost ? `Rp ${formatNumber(log.cost)}` : "-"}
+                        </Text>
                     </View>
                 </View>
 
@@ -179,8 +128,7 @@ export default function HistoryDetailScreen() {
                     <Text style={styles.sectionTitle}>CATATAN</Text>
 
                     <Text style={styles.note}>
-                        Servis dilakukan sesuai jadwal perawatan kendaraan.
-                        Semua komponen telah diperiksa dan dalam kondisi baik.
+                        {log.notes || "Tidak ada catatan untuk servis ini."}
                     </Text>
                 </NeoBrutalCard>
             </ScrollView>
@@ -253,25 +201,6 @@ const styles = StyleSheet.create({
     heroName: {
         fontSize: 22,
         fontWeight: "900",
-        color: COLORS.textPrimary,
-    },
-
-    heroBadge: {
-        alignSelf: "flex-start",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderWidth: BORDER_WIDTH.thick,
-        borderColor: COLORS.border,
-    },
-
-    heroBadgeText: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.textPrimary,
-    },
-
-    heroDescription: {
-        fontSize: 14,
         color: COLORS.textPrimary,
     },
 
