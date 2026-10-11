@@ -42,6 +42,7 @@ export interface Component {
   isPinned: boolean;
   isHidden: boolean;
   isCustom: boolean;
+  isMuted: boolean; // PRD 5.8: mute notifikasi per komponen
   notes?: string;
 }
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Component, ServiceLog } from '../types';
+import { ACTIVE_MOTOR_ID } from '../constants/activeMotor';
 
-const ACTIVE_MOTOR_ID = 'motor-1';
 const MAX_PINNED = 5;
 
 const initialComponents: Component[] = [
@@ -15,6 +15,7 @@ const initialComponents: Component[] = [
     isPinned: true,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'air-filter',
@@ -25,6 +26,7 @@ const initialComponents: Component[] = [
     isPinned: true,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'front-tire',
@@ -35,6 +37,7 @@ const initialComponents: Component[] = [
     isPinned: true,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'rear-tire',
@@ -45,6 +48,7 @@ const initialComponents: Component[] = [
     isPinned: true,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'brake',
@@ -55,6 +59,7 @@ const initialComponents: Component[] = [
     isPinned: true,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'battery',
@@ -65,6 +70,7 @@ const initialComponents: Component[] = [
     isPinned: false,
     isHidden: false,
     isCustom: false,
+    isMuted: false,
   },
   {
     id: 'final-gear-oil',
@@ -75,6 +81,7 @@ const initialComponents: Component[] = [
     isPinned: false,
     isHidden: true,
     isCustom: false,
+    isMuted: false,
   },
 ];
 
@@ -101,6 +108,7 @@ interface ComponentStoreState {
   setCurrentKm: (km: number) => void;
   togglePin: (id: string) => boolean;
   toggleHidden: (id: string) => void;
+  toggleMuteComponent: (id: string) => void;
   addCustomComponent: (input: { name: string; intervalKm: number }) => void;
   removeComponent: (id: string) => void;
   updateComponentInterval: (id: string, intervalKm: number) => void;
@@ -142,6 +150,14 @@ export const useComponentStore = create<ComponentStoreState>((set, get) => ({
     }));
   },
 
+  toggleMuteComponent: (id) => {
+    set((state) => ({
+      components: state.components.map((c) =>
+        c.id === id ? { ...c, isMuted: !c.isMuted } : c,
+      ),
+    }));
+  },
+
   addCustomComponent: ({ name, intervalKm }) => {
     const newComponent: Component = {
       id: generateId('custom'),
@@ -152,6 +168,7 @@ export const useComponentStore = create<ComponentStoreState>((set, get) => ({
       isPinned: false,
       isHidden: false,
       isCustom: true,
+      isMuted: false,
     };
     set((state) => ({ components: [newComponent, ...state.components] }));
   },

@@ -16,7 +16,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { getStatusColor, getProgressColor, withComponentStatus } from "@utils/componentStatus";
 import { useComponentStore } from "@store/useComponentStore";
-import { Pencil, Wrench, ArrowLeft, CheckCircle2 } from "lucide-react-native";
+import { useSettingsStore } from "@store/useSettingsStore";
+import { Pencil, Wrench, ArrowLeft, CheckCircle2, BellOff } from "lucide-react-native";
 
 const statusLabels: Record<string, string> = {
     safe: "AMAN",
@@ -62,6 +63,12 @@ export default function ComponentDetailScreen() {
             .sort((a, b) => (a.serviceDate < b.serviceDate ? 1 : -1)),
     );
     const markServiced = useComponentStore((state) => state.markServiced);
+    const toggleMuteComponent = useComponentStore(
+        (state) => state.toggleMuteComponent,
+    );
+    const notificationThresholdKm = useSettingsStore(
+        (state) => state.notificationThresholdKm,
+    );
 
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [kmInput, setKmInput] = useState("");
@@ -70,8 +77,11 @@ export default function ComponentDetailScreen() {
     const [notesInput, setNotesInput] = useState("");
 
     const component = useMemo(
-        () => (rawComponent ? withComponentStatus(rawComponent, currentKm) : null),
-        [rawComponent, currentKm],
+        () =>
+            rawComponent
+                ? withComponentStatus(rawComponent, currentKm, notificationThresholdKm)
+                : null,
+        [rawComponent, currentKm, notificationThresholdKm],
     );
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
@@ -146,25 +156,41 @@ export default function ComponentDetailScreen() {
                 <Text style={styles.title} numberOfLines={1}>
                     Detail {component.name}
                 </Text>
-                <Animated.View
-                    style={{ transform: [{ scale: editButtonScale }] }}
-                >
+                <View style={styles.headerActions}>
                     <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() =>
-                            router.push(`/dashboard/edit/${component.id}`)
-                        }
-                        onPressIn={() => animateButton(editButtonScale, 0.9)}
-                        onPressOut={() => animateButton(editButtonScale, 1)}
-                        activeOpacity={1}
+                        style={[
+                            styles.backButton,
+                            component.isMuted && styles.headerButtonActive,
+                        ]}
+                        onPress={() => toggleMuteComponent(component.id)}
+                        activeOpacity={0.8}
                     >
-                        <Pencil
+                        <BellOff
                             size={16}
                             color={COLORS.textPrimary}
                             strokeWidth={2.5}
                         />
                     </TouchableOpacity>
-                </Animated.View>
+                    <Animated.View
+                        style={{ transform: [{ scale: editButtonScale }] }}
+                    >
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() =>
+                                router.push(`/dashboard/edit/${component.id}`)
+                            }
+                            onPressIn={() => animateButton(editButtonScale, 0.9)}
+                            onPressOut={() => animateButton(editButtonScale, 1)}
+                            activeOpacity={1}
+                        >
+                            <Pencil
+                                size={16}
+                                color={COLORS.textPrimary}
+                                strokeWidth={2.5}
+                            />
+                        </TouchableOpacity>
+                    </Animated.View>
+                </View>
             </View>
 
             <ScrollView
@@ -195,6 +221,19 @@ export default function ComponentDetailScreen() {
                             </Text>
                         </View>
                     </View>
+
+                    {component.isMuted && (
+                        <View style={styles.mutedRow}>
+                            <BellOff
+                                size={14}
+                                color={COLORS.textSecondary}
+                                strokeWidth={2.5}
+                            />
+                            <Text style={styles.mutedText}>
+                                Notifikasi komponen ini dimatikan
+                            </Text>
+                        </View>
+                    )}
 
                     <View style={styles.heroBottomRow}>
                         <View style={styles.heroIconBox}>
@@ -527,6 +566,13 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
+    headerActions: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    headerButtonActive: {
+        backgroundColor: COLORS.yellow,
+    },
     title: {
         flex: 1,
         textAlign: "center",
@@ -623,6 +669,16 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 16,
+    },
+    mutedRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    mutedText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: COLORS.textSecondary,
     },
     heroIconBox: {
         width: 56,

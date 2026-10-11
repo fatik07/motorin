@@ -16,15 +16,33 @@ import {
     Info,
     LogOut,
     Camera,
+    Bell,
+    BellOff,
+    SlidersVertical,
 } from "lucide-react-native";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
 import { NeoBrutalCard, TabsHeader } from "@components/index";
+import {
+    useSettingsStore,
+    NOTIFICATION_THRESHOLD_OPTIONS,
+} from "@store/useSettingsStore";
+import { ACTIVE_MOTOR_ID, ACTIVE_MOTOR_NAME } from "@constants/activeMotor";
 
 export default function SettingsScreen() {
     const router = useRouter();
     const editProfileScale = useRef(new Animated.Value(1)).current;
     const itemScale = useRef(new Animated.Value(1)).current;
     const logoutScale = useRef(new Animated.Value(1)).current;
+
+    const notificationThresholdKm = useSettingsStore(
+        (state) => state.notificationThresholdKm,
+    );
+    const setNotificationThreshold = useSettingsStore(
+        (state) => state.setNotificationThreshold,
+    );
+    const mutedMotorIds = useSettingsStore((state) => state.mutedMotorIds);
+    const toggleMuteMotor = useSettingsStore((state) => state.toggleMuteMotor);
+    const isActiveMotorMuted = mutedMotorIds.includes(ACTIVE_MOTOR_ID);
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -106,6 +124,80 @@ export default function SettingsScreen() {
                             </Text>
                         </TouchableOpacity>
                     </Animated.View>
+                </NeoBrutalCard>
+
+                {/* Notifications */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>NOTIFIKASI</Text>
+                </View>
+
+                <NeoBrutalCard style={styles.notifCard}>
+                    <Text style={styles.notifLabel}>
+                        AMBANG PERINGATAN (SISA KM)
+                    </Text>
+                    <Text style={styles.notifHint}>
+                        Komponen ditandai "Mendekati" saat sisa km-nya kurang
+                        dari atau sama dengan angka ini.
+                    </Text>
+                    <View style={styles.thresholdRow}>
+                        {NOTIFICATION_THRESHOLD_OPTIONS.map((option) => {
+                            const active = option === notificationThresholdKm;
+                            return (
+                                <TouchableOpacity
+                                    key={option}
+                                    style={[
+                                        styles.thresholdChip,
+                                        active && styles.thresholdChipActive,
+                                    ]}
+                                    onPress={() => setNotificationThreshold(option)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.thresholdChipText}>
+                                        {option}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    <View style={styles.notifDivider} />
+
+                    <View style={styles.muteMotorRow}>
+                        <View style={styles.muteMotorText}>
+                            <Text style={styles.notifLabel}>
+                                MUTE NOTIFIKASI MOTOR
+                            </Text>
+                            <Text style={styles.notifHint}>
+                                {ACTIVE_MOTOR_NAME}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[
+                                styles.muteToggle,
+                                isActiveMotorMuted && styles.muteToggleActive,
+                            ]}
+                            onPress={() => toggleMuteMotor(ACTIVE_MOTOR_ID)}
+                            activeOpacity={0.8}
+                        >
+                            {isActiveMotorMuted ? (
+                                <BellOff size={18} color={COLORS.textSecondary} />
+                            ) : (
+                                <Bell size={18} color={COLORS.textPrimary} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.manageComponentsLink}
+                        onPress={() => router.push("/dashboard/manage-komponen")}
+                        activeOpacity={0.8}
+                    >
+                        <SlidersVertical size={16} color={COLORS.textPrimary} />
+                        <Text style={styles.manageComponentsLinkText}>
+                            Atur mute per komponen di halaman Atur Komponen
+                        </Text>
+                        <ChevronRight size={16} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
                 </NeoBrutalCard>
 
                 {/* App Preferences */}
@@ -278,6 +370,87 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: COLORS.textSecondary,
         letterSpacing: 1.5,
+    },
+    notifCard: {
+        backgroundColor: COLORS.surface,
+        padding: 20,
+        marginBottom: 32,
+        gap: 4,
+    },
+    notifLabel: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+        letterSpacing: 0.5,
+    },
+    notifHint: {
+        fontSize: 13,
+        fontWeight: "500",
+        color: COLORS.textSecondary,
+        lineHeight: 18,
+        marginBottom: 12,
+    },
+    thresholdRow: {
+        flexDirection: "row",
+        gap: 10,
+    },
+    thresholdChip: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: "center",
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.surface,
+    },
+    thresholdChipActive: {
+        backgroundColor: COLORS.primary,
+    },
+    thresholdChipText: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.textPrimary,
+    },
+    notifDivider: {
+        height: 2,
+        backgroundColor: COLORS.border,
+        marginVertical: 20,
+    },
+    muteMotorRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+    },
+    muteMotorText: {
+        flex: 1,
+        gap: 4,
+    },
+    muteToggle: {
+        width: 44,
+        height: 44,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: COLORS.surface,
+    },
+    muteToggleActive: {
+        backgroundColor: "#f3f4f6",
+    },
+    manageComponentsLink: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginTop: 20,
+        paddingTop: 16,
+        borderTopWidth: BORDER_WIDTH.thin,
+        borderTopColor: COLORS.border,
+    },
+    manageComponentsLinkText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: "600",
+        color: COLORS.textPrimary,
     },
     listContainer: {
         gap: 16,

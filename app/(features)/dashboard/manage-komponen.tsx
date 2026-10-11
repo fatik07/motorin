@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS, BORDER_WIDTH } from "@constants/theme";
-import { Pin, Eye, EyeOff, Plus, ArrowLeft } from "lucide-react-native";
+import { Pin, Eye, EyeOff, Bell, BellOff, Plus, ArrowLeft } from "lucide-react-native";
 import { useComponentStore } from "@store/useComponentStore";
 
 const MAX_PINNED = 5;
@@ -22,6 +22,9 @@ export default function ManageDashboard() {
     const components = useComponentStore((state) => state.components);
     const togglePin = useComponentStore((state) => state.togglePin);
     const toggleHidden = useComponentStore((state) => state.toggleHidden);
+    const toggleMuteComponent = useComponentStore(
+        (state) => state.toggleMuteComponent,
+    );
     const addCustomComponent = useComponentStore(
         (state) => state.addCustomComponent,
     );
@@ -91,7 +94,8 @@ export default function ManageDashboard() {
             <View style={styles.intro}>
                 <Text style={styles.introText}>
                     Pin komponen untuk ditampilkan di dashboard (maksimal{" "}
-                    {MAX_PINNED}), atau sembunyikan komponen yang tidak relevan.
+                    {MAX_PINNED}), sembunyikan komponen yang tidak relevan,
+                    atau matikan notifikasi per komponen.
                 </Text>
                 <Text style={styles.pinnedCount}>
                     Pinned: {pinnedCount}/{MAX_PINNED}
@@ -194,6 +198,19 @@ export default function ManageDashboard() {
                                     <Eye size={16} color={COLORS.textPrimary} />
                                 )}
                             </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => toggleMuteComponent(item.id)}
+                                style={[
+                                    styles.iconToggle,
+                                    item.isMuted && styles.iconToggleMuted,
+                                ]}
+                            >
+                                {item.isMuted ? (
+                                    <BellOff size={16} color={COLORS.textSecondary} />
+                                ) : (
+                                    <Bell size={16} color={COLORS.textPrimary} />
+                                )}
+                            </TouchableOpacity>
                         </View>
                     </View>
                 )}
@@ -294,5 +311,8 @@ const styles = StyleSheet.create({
     },
     iconToggleDisabled: {
         opacity: 0.4,
+    },
+    iconToggleMuted: {
+        backgroundColor: "#f3f4f6",
     },
 });

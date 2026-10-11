@@ -11,6 +11,8 @@ import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ComponentCard, NeoBrutalCard, TabsHeader } from "@components/index";
 import { withComponentStatus } from "@utils/componentStatus";
 import { useComponentStore } from "@store/useComponentStore";
+import { useSettingsStore } from "@store/useSettingsStore";
+import { ACTIVE_MOTOR_NAME } from "@constants/activeMotor";
 import {
     Modal,
     TextInput,
@@ -29,6 +31,9 @@ export default function DashboardScreen() {
     const currentKm = useComponentStore((state) => state.currentKm);
     const components = useComponentStore((state) => state.components);
     const setCurrentKm = useComponentStore((state) => state.setCurrentKm);
+    const notificationThresholdKm = useSettingsStore(
+        (state) => state.notificationThresholdKm,
+    );
 
     const closeButtonScale = useRef(new Animated.Value(1)).current;
     const saveButtonScale = useRef(new Animated.Value(1)).current;
@@ -44,7 +49,7 @@ export default function DashboardScreen() {
 
     const heroData = useMemo(
         () => ({
-            name: "Vario Kesayangan",
+            name: ACTIVE_MOTOR_NAME,
             km: `${currentKm.toLocaleString("id-ID")} km`,
         }),
         [currentKm],
@@ -54,8 +59,10 @@ export default function DashboardScreen() {
         () =>
             components
                 .filter((component) => component.isPinned && !component.isHidden)
-                .map((component) => withComponentStatus(component, currentKm)),
-        [components, currentKm],
+                .map((component) =>
+                    withComponentStatus(component, currentKm, notificationThresholdKm),
+                ),
+        [components, currentKm, notificationThresholdKm],
     );
 
     const openUpdateModal = () => {
