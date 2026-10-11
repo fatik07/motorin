@@ -43,6 +43,12 @@ export default function SettingsScreen() {
     );
     const mutedMotorIds = useSettingsStore((state) => state.mutedMotorIds);
     const toggleMuteMotor = useSettingsStore((state) => state.toggleMuteMotor);
+    const dailyKmReminderEnabled = useSettingsStore(
+        (state) => state.dailyKmReminderEnabled,
+    );
+    const setDailyKmReminderEnabled = useSettingsStore(
+        (state) => state.setDailyKmReminderEnabled,
+    );
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
         Animated.spring(scale, {
@@ -52,10 +58,10 @@ export default function SettingsScreen() {
         }).start();
     };
 
-    const handleLogout = () => {
+    const handleExitApp = () => {
         Alert.alert(
-            "Keluar Akun",
-            "Apakah Anda yakin ingin keluar dan menutup aplikasi?",
+            "Keluar Aplikasi",
+            "Apakah Anda yakin ingin menutup aplikasi?",
             [
                 {
                     text: "Tidak",
@@ -162,6 +168,33 @@ export default function SettingsScreen() {
 
                     <View style={styles.notifDivider} />
 
+                    <View style={styles.muteMotorRow}>
+                        <View style={styles.muteMotorText}>
+                            <Text style={styles.notifLabel}>
+                                PENGINGAT UPDATE KM HARIAN
+                            </Text>
+                            <Text style={styles.notifHint}>Setiap jam 18:00</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[
+                                styles.muteToggle,
+                                dailyKmReminderEnabled && styles.muteToggleOn,
+                            ]}
+                            onPress={() =>
+                                setDailyKmReminderEnabled(!dailyKmReminderEnabled)
+                            }
+                            activeOpacity={0.8}
+                        >
+                            {dailyKmReminderEnabled ? (
+                                <Bell size={18} color={COLORS.textPrimary} />
+                            ) : (
+                                <BellOff size={18} color={COLORS.textSecondary} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.notifDivider} />
+
                     <Text style={styles.notifLabel}>MUTE NOTIFIKASI MOTOR</Text>
                     {motors.length === 0 ? (
                         <Text style={styles.notifHint}>Belum ada motor.</Text>
@@ -251,8 +284,8 @@ export default function SettingsScreen() {
                     >
                         <TouchableOpacity
                             activeOpacity={1}
-                            style={[styles.listItem, styles.logoutItem]}
-                            onPress={handleLogout}
+                            style={[styles.listItem, styles.exitItem]}
+                            onPress={handleExitApp}
                             onPressIn={() => animateButton(logoutScale, 0.98)}
                             onPressOut={() => animateButton(logoutScale, 1)}
                         >
@@ -267,10 +300,10 @@ export default function SettingsScreen() {
                                 <Text
                                     style={[
                                         styles.listItemText,
-                                        styles.logoutText,
+                                        styles.exitText,
                                     ]}
                                 >
-                                    Keluar Akun
+                                    Keluar Aplikasi
                                 </Text>
                             </View>
                         </TouchableOpacity>
@@ -445,6 +478,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         backgroundColor: COLORS.surface,
     },
+    muteToggleOn: {
+        backgroundColor: COLORS.primary,
+    },
     muteToggleActive: {
         backgroundColor: "#f3f4f6",
     },
@@ -480,7 +516,7 @@ const styles = StyleSheet.create({
         shadowRadius: 0,
         elevation: 4,
     },
-    logoutItem: {
+    exitItem: {
         backgroundColor: "#fee2e2", // Light red
     },
     listItemLeft: {
@@ -499,7 +535,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: COLORS.textPrimary,
     },
-    logoutText: {
+    exitText: {
         color: "#b91c1c", // Darker red
     },
     versionContainer: {

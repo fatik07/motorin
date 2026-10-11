@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
     View,
     Text,
@@ -22,6 +22,8 @@ import { withComponentStatus, getStatusText } from "@utils/componentStatus";
 import { useComponentStore } from "@store/useComponentStore";
 import { useMotorStore } from "@store/useMotorStore";
 import { useSettingsStore } from "@store/useSettingsStore";
+import { useUiStore } from "@store/useUiStore";
+import { checkComponentAlerts } from "@notifications/checkComponentAlerts";
 import {
     Modal,
     TextInput,
@@ -111,11 +113,28 @@ export default function DashboardScreen() {
         setShowUpdateModal(true);
     };
 
+    const pendingOpenUpdateKm = useUiStore((state) => state.pendingOpenUpdateKm);
+    const consumeOpenUpdateKmRequest = useUiStore(
+        (state) => state.consumeOpenUpdateKmRequest,
+    );
+
+    useEffect(() => {
+        if (pendingOpenUpdateKm) {
+            openUpdateModal();
+            consumeOpenUpdateKmRequest();
+        }
+    }, [pendingOpenUpdateKm]);
+
     const handleSaveKm = () => {
         const parsed = parseInt(kmInput.replace(/[^0-9]/g, ""), 10);
         if (parsed > 0 && activeMotor) {
             updateMotorKm(activeMotor.id, parsed);
+            checkComponentAlerts();
         }
+        setShowUpdateModal(false);
+    };
+
+    const handleSkipKm = () => {
         setShowUpdateModal(false);
     };
 
@@ -254,6 +273,16 @@ export default function DashboardScreen() {
                                     </Text>
                                 </TouchableOpacity>
                             </Animated.View>
+
+                            <TouchableOpacity
+                                style={modalStyles.skipButton}
+                                onPress={handleSkipKm}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={modalStyles.skipButtonText}>
+                                    Lewati Hari Ini
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </KeyboardAvoidingView>
                 </SafeAreaView>
@@ -776,4 +805,13 @@ const modalStyles = StyleSheet.create({
         marginTop: 30,
     },
     saveButtonText: { fontWeight: "800", color: COLORS.textPrimary },
+    skipButton: {
+        alignItems: "center",
+        paddingVertical: 14,
+    },
+    skipButtonText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: COLORS.textSecondary,
+    },
 });

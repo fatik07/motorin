@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { getStatusColor, getProgressColor, withComponentStatus } from "@utils/componentStatus";
 import { formatDateId } from "@utils/date";
+import { predictReplacementDate } from "@utils/prediction";
 import { useComponentStore } from "@store/useComponentStore";
 import { useMotorStore } from "@store/useMotorStore";
 import { useSettingsStore } from "@store/useSettingsStore";
@@ -51,6 +52,9 @@ export default function ComponentDetailScreen() {
         (state) =>
             state.motors.find((m) => m.id === rawComponent?.motorId)?.currentKm ?? 0,
     );
+    const motorKmLogs = useMotorStore((state) =>
+        state.kmLogs.filter((log) => log.motorId === rawComponent?.motorId),
+    );
     const serviceLogs = useComponentStore((state) =>
         state.serviceLogs
             .filter((log) => log.componentId === id)
@@ -76,6 +80,14 @@ export default function ComponentDetailScreen() {
                 ? withComponentStatus(rawComponent, currentKm, notificationThresholdKm)
                 : null,
         [rawComponent, currentKm, notificationThresholdKm],
+    );
+
+    const prediction = useMemo(
+        () =>
+            component
+                ? predictReplacementDate(motorKmLogs, component.remainingKm)
+                : null,
+        [component, motorKmLogs],
     );
 
     const animateButton = (scale: Animated.Value, toValue: number) => {
@@ -340,6 +352,33 @@ export default function ComponentDetailScreen() {
                         </Text>
                     </View>
                 </View>
+
+                {/* Prediction */}
+                {component.remainingKm > 0 && (
+                    <View style={styles.predictionCard}>
+                        <Text style={styles.predictionLabel}>
+                            PERKIRAAN TANGGAL GANTI
+                        </Text>
+                        {prediction ? (
+                            <>
+                                <Text style={styles.predictionValue}>
+                                    {formatDateId(
+                                        prediction.predictedDate.toISOString(),
+                                    )}
+                                </Text>
+                                <Text style={styles.predictionHint}>
+                                    Berdasarkan rata-rata pemakaian{" "}
+                                    {formatNumber(prediction.avgKmPerDay)} km/hari.
+                                </Text>
+                            </>
+                        ) : (
+                            <Text style={styles.predictionHint}>
+                                Butuh lebih banyak riwayat update km untuk
+                                memperkirakan tanggal.
+                            </Text>
+                        )}
+                    </View>
+                )}
 
                 {/* Service History */}
                 <View style={styles.historySection}>
@@ -790,6 +829,37 @@ const styles = StyleSheet.create({
     infoCardUnit: {
         fontSize: 14,
         fontWeight: "400",
+    },
+
+    // Prediction
+    predictionCard: {
+        backgroundColor: COLORS.surface,
+        borderWidth: BORDER_WIDTH.thick,
+        borderColor: COLORS.border,
+        padding: 20,
+        shadowColor: COLORS.border,
+        shadowOffset: { width: SHADOW_OFFSET, height: SHADOW_OFFSET },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 4,
+        gap: 4,
+    },
+    predictionLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: COLORS.textSecondary,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    predictionValue: {
+        fontSize: 20,
+        fontWeight: "900",
+        color: COLORS.textPrimary,
+    },
+    predictionHint: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: COLORS.textSecondary,
     },
 
     // History

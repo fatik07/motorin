@@ -9,9 +9,11 @@ export const DEFAULT_NOTIFICATION_THRESHOLD_KM = 200;
 interface SettingsStoreState {
   notificationThresholdKm: number;
   mutedMotorIds: string[];
+  dailyKmReminderEnabled: boolean;
   setNotificationThreshold: (km: number) => void;
   toggleMuteMotor: (motorId: string) => void;
   isMotorMuted: (motorId: string) => boolean;
+  setDailyKmReminderEnabled: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStoreState>()(
@@ -19,6 +21,7 @@ export const useSettingsStore = create<SettingsStoreState>()(
     (set, get) => ({
       notificationThresholdKm: DEFAULT_NOTIFICATION_THRESHOLD_KM,
       mutedMotorIds: [],
+      dailyKmReminderEnabled: true,
 
       setNotificationThreshold: (km) => set({ notificationThresholdKm: km }),
 
@@ -31,6 +34,9 @@ export const useSettingsStore = create<SettingsStoreState>()(
       },
 
       isMotorMuted: (motorId) => get().mutedMotorIds.includes(motorId),
+
+      setDailyKmReminderEnabled: (enabled) =>
+        set({ dailyKmReminderEnabled: enabled }),
     }),
     {
       name: 'motor-track/settings',
