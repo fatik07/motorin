@@ -6,10 +6,19 @@ import {
     ScrollView,
     TouchableOpacity,
 } from "react-native";
-import { Bike, Gauge, Pencil, SlidersVertical } from "lucide-react-native";
+import {
+    Bike,
+    Gauge,
+    Pencil,
+    SlidersVertical,
+    ChevronDown,
+    ChevronUp,
+    Pin,
+    EyeOff,
+} from "lucide-react-native";
 import { COLORS, BORDER_WIDTH, SHADOW_OFFSET } from "@constants/theme";
 import { ComponentCard, NeoBrutalCard, TabsHeader } from "@components/index";
-import { withComponentStatus } from "@utils/componentStatus";
+import { withComponentStatus, getStatusText } from "@utils/componentStatus";
 import { useComponentStore } from "@store/useComponentStore";
 import { useSettingsStore } from "@store/useSettingsStore";
 import { ACTIVE_MOTOR_NAME } from "@constants/activeMotor";
@@ -20,17 +29,21 @@ import {
     KeyboardAvoidingView,
     Platform,
     Animated,
+    Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 
 export default function DashboardScreen() {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [kmInput, setKmInput] = useState("");
+    const [showOtherComponents, setShowOtherComponents] = useState(false);
     const router = useRouter();
 
     const currentKm = useComponentStore((state) => state.currentKm);
     const components = useComponentStore((state) => state.components);
     const setCurrentKm = useComponentStore((state) => state.setCurrentKm);
+    const togglePin = useComponentStore((state) => state.togglePin);
+    const toggleHidden = useComponentStore((state) => state.toggleHidden);
     const notificationThresholdKm = useSettingsStore(
         (state) => state.notificationThresholdKm,
     );
@@ -64,6 +77,26 @@ export default function DashboardScreen() {
                 ),
         [components, currentKm, notificationThresholdKm],
     );
+
+    const otherComponents = useMemo(
+        () =>
+            components
+                .filter((component) => !component.isPinned && !component.isHidden)
+                .map((component) =>
+                    withComponentStatus(component, currentKm, notificationThresholdKm),
+                ),
+        [components, currentKm, notificationThresholdKm],
+    );
+
+    const handlePinFromList = (id: string) => {
+        const ok = togglePin(id);
+        if (!ok) {
+            Alert.alert(
+                "Batas Pin Tercapai",
+                "Maksimal 5 komponen bisa di-pin ke dashboard. Lepas pin komponen lain terlebih dahulu di halaman Atur Komponen.",
+            );
+        }
+    };
 
     const openUpdateModal = () => {
         setKmInput("");
@@ -275,6 +308,108 @@ export default function DashboardScreen() {
                     ))}
                 </View>
 
+                <View style={styles.collapseCard}>
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.collapseHeader}
+                        onPress={() => setShowOtherComponents((v) => !v)}
+                    >
+                        <View style={styles.collapseTitleRow}>
+                            <SlidersVertical
+                                size={18}
+                                color={COLORS.textPrimary}
+                                strokeWidth={2.4}
+                            />
+                            <Text style={styles.collapseTitle}>
+                                Komponen Lainnya
+                            </Text>
+                            <Text style={styles.sectionSubtitle}>
+                                {otherComponents.length} item
+                            </Text>
+                        </View>
+                        {showOtherComponents ? (
+                            <ChevronUp size={20} color={COLORS.textPrimary} />
+                        ) : (
+                            <ChevronDown size={20} color={COLORS.textPrimary} />
+                        )}
+                    </TouchableOpacity>
+
+                    {showOtherComponents && (
+                        <View style={styles.extraList}>
+                            {otherComponents.length === 0 ? (
+                                <View style={styles.extraRow}>
+                                    <Text style={styles.extraDescription}>
+                                        Semua komponen sudah dipin ke dashboard.
+                                    </Text>
+                                </View>
+                            ) : (
+                                otherComponents.map((component, index) => (
+                                    <View
+                                        key={component.id}
+                                        style={[
+                                            styles.extraRow,
+                                            index < otherComponents.length - 1 &&
+                                                styles.extraRowDivider,
+                                        ]}
+                                    >
+                                        <View style={styles.extraTextBlock}>
+                                            <Text style={styles.extraTitle}>
+                                                {component.name}
+                                            </Text>
+                                            <Text style={styles.extraDescription}>
+                                                {getStatusText(component.remainingKm)}
+                                            </Text>
+                                        </View>
+
+                                        <View
+                                            style={[
+                                                styles.extraBadge,
+                                                component.statusLevel === "safe" &&
+                                                    styles.safeBadge,
+                                                component.statusLevel === "warning" &&
+                                                    styles.warningBadge,
+                                                component.statusLevel === "overdue" &&
+                                                    styles.dangerBadge,
+                                            ]}
+                                        >
+                                            <Text style={styles.extraBadgeText}>
+                                                {component.statusLevel === "safe"
+                                                    ? "AMAN"
+                                                    : component.statusLevel === "warning"
+                                                      ? "WASPADA"
+                                                      : "LEWAT"}
+                                            </Text>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={styles.extraIconBtn}
+                                            onPress={() =>
+                                                handlePinFromList(component.id)
+                                            }
+                                        >
+                                            <Pin
+                                                size={16}
+                                                color={COLORS.textPrimary}
+                                            />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.extraIconBtn}
+                                            onPress={() =>
+                                                toggleHidden(component.id)
+                                            }
+                                        >
+                                            <EyeOff
+                                                size={16}
+                                                color={COLORS.textSecondary}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))
+                            )}
+                        </View>
+                    )}
+                </View>
+
                 <TouchableOpacity
                     activeOpacity={0.8}
                     style={styles.manageButton}
@@ -286,7 +421,9 @@ export default function DashboardScreen() {
                             color={COLORS.textPrimary}
                             strokeWidth={2.4}
                         />
-                        <Text style={styles.manageTitle}>Komponen Lainnya</Text>
+                        <Text style={styles.manageTitle}>
+                            Atur & Tambah Komponen
+                        </Text>
                     </View>
                 </TouchableOpacity>
             </View>
@@ -485,6 +622,14 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: "800",
         color: COLORS.textPrimary,
+    },
+    extraIconBtn: {
+        width: 32,
+        height: 32,
+        borderWidth: BORDER_WIDTH.thin,
+        borderColor: COLORS.border,
+        alignItems: "center",
+        justifyContent: "center",
     },
     manageButton: {
         backgroundColor: COLORS.surface,
