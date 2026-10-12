@@ -31,7 +31,7 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
     return requested.status === "granted";
 };
 
-// PRD §4: daily km-update reminder, default 18:00.
+// PRD §4: daily km-update reminder, default 17:00.
 export const scheduleDailyKmReminder = async (enabled: boolean) => {
     await Notifications.cancelScheduledNotificationAsync(
         DAILY_REMINDER_ID,
@@ -49,7 +49,7 @@ export const scheduleDailyKmReminder = async (enabled: boolean) => {
         },
         trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: 18,
+            hour: 17,
             minute: 0,
             channelId: ANDROID_CHANNEL_ID,
         },

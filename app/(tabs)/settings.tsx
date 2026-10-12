@@ -173,7 +173,7 @@ export default function SettingsScreen() {
                             <Text style={styles.notifLabel}>
                                 PENGINGAT UPDATE KM HARIAN
                             </Text>
-                            <Text style={styles.notifHint}>Setiap jam 18:00</Text>
+                            <Text style={styles.notifHint}>Setiap jam 17:00</Text>
                         </View>
                         <TouchableOpacity
                             style={[
