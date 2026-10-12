@@ -54,11 +54,3 @@ export interface ServiceLog {
   brandUsed?: string;
   cost?: number;
 }
-
-// User Types
-export interface User {
-  id: string;
-  name: string;
-  email?: string;
-  photoUri?: string;
-}

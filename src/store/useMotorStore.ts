@@ -4,9 +4,7 @@ import type { KmLog, Motor } from '../types';
 import { getDefaultComponentTemplates, DEFAULT_PINNED_COUNT } from '../constants/defaultComponents';
 import { useComponentStore } from './useComponentStore';
 import { sqliteJSONStorage } from './sqliteStorage';
-
-const generateId = (prefix: string) =>
-  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+import { generateUuid } from '../utils/uuid';
 
 interface MotorStoreState {
   motors: Motor[];
@@ -31,7 +29,7 @@ export const useMotorStore = create<MotorStoreState>()(
       kmLogs: [],
 
       addMotor: ({ name, fuelType, transmission, currentKm, photoUri }) => {
-        const id = generateId('motor');
+        const id = generateUuid();
         const motor: Motor = {
           id,
           name,
@@ -41,7 +39,7 @@ export const useMotorStore = create<MotorStoreState>()(
           photoUri,
         };
         const kmLog: KmLog = {
-          id: generateId('kmlog'),
+          id: generateUuid(),
           motorId: id,
           kmValue: currentKm,
           loggedAt: new Date().toISOString(),
@@ -68,7 +66,7 @@ export const useMotorStore = create<MotorStoreState>()(
 
       updateMotorKm: (motorId, km) => {
         const kmLog: KmLog = {
-          id: generateId('kmlog'),
+          id: generateUuid(),
           motorId,
           kmValue: km,
           loggedAt: new Date().toISOString(),

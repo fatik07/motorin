@@ -12,6 +12,9 @@ import {
     DAILY_KM_REMINDER_DATA_TYPE,
 } from "@notifications/scheduler";
 import { checkComponentAlerts } from "@notifications/checkComponentAlerts";
+import { ensureAnonymousSession } from "../src/supabase/auth";
+import { pushLocalChanges } from "../src/sync/pushLocalChanges";
+import { wireAutoSync } from "../src/sync/wireAutoSync";
 
 export default function RootLayout() {
     const hasMotors = useMotorStore((state) => state.motors.length > 0);
@@ -19,6 +22,14 @@ export default function RootLayout() {
         (state) => state.dailyKmReminderEnabled,
     );
     const didInitialCheck = useRef(false);
+
+    useEffect(() => {
+        wireAutoSync();
+        (async () => {
+            await ensureAnonymousSession();
+            await pushLocalChanges();
+        })();
+    }, []);
 
     useEffect(() => {
         if (!hasMotors) return;
@@ -40,6 +51,7 @@ export default function RootLayout() {
         const subscription = AppState.addEventListener("change", (state) => {
             if (state === "active" && hasMotors) {
                 checkComponentAlerts();
+                pushLocalChanges();
             }
         });
         return () => subscription.remove();

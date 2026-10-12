@@ -3,15 +3,17 @@ import { persist } from 'zustand/middleware';
 import type { Component, ServiceLog } from '../types';
 import type { DefaultComponentTemplate } from '../constants/defaultComponents';
 import { sqliteJSONStorage } from './sqliteStorage';
+import { generateUuid } from '../utils/uuid';
 
 const MAX_PINNED_PER_MOTOR = 5;
-
-const generateId = (prefix: string) =>
-  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 interface ComponentStoreState {
   components: Component[];
   serviceLogs: ServiceLog[];
+  // Ids removed locally but not yet confirmed soft-deleted on the server —
+  // see src/sync/pushLocalChanges.ts.
+  pendingDeletedComponentIds: string[];
+  pendingDeletedServiceLogIds: string[];
   seedDefaultComponents: (
     motorId: string,
     templates: DefaultComponentTemplate[],
@@ -33,6 +35,8 @@ interface ComponentStoreState {
     componentId: string,
     input: { serviceKm: number; notes?: string; brandUsed?: string; cost?: number },
   ) => void;
+  clearPendingDeletedComponentIds: (ids: string[]) => void;
+  clearPendingDeletedServiceLogIds: (ids: string[]) => void;
 }
 
 export const useComponentStore = create<ComponentStoreState>()(
@@ -40,10 +44,12 @@ export const useComponentStore = create<ComponentStoreState>()(
     (set, get) => ({
       components: [],
       serviceLogs: [],
+      pendingDeletedComponentIds: [],
+      pendingDeletedServiceLogIds: [],
 
       seedDefaultComponents: (motorId, templates, lastServiceKm, pinnedCount) => {
         const seeded: Component[] = templates.map((template, index) => ({
-          id: `${generateId('component')}-${index}`,
+          id: generateUuid(),
           motorId,
           name: template.name,
           intervalKm: template.intervalKm,
@@ -93,7 +99,7 @@ export const useComponentStore = create<ComponentStoreState>()(
 
       addCustomComponent: ({ motorId, name, intervalKm, lastServiceKm }) => {
         const newComponent: Component = {
-          id: generateId('custom'),
+          id: generateUuid(),
           motorId,
           name,
           intervalKm,
@@ -107,10 +113,21 @@ export const useComponentStore = create<ComponentStoreState>()(
       },
 
       removeComponent: (id) => {
-        set((state) => ({
-          components: state.components.filter((c) => c.id !== id),
-          serviceLogs: state.serviceLogs.filter((l) => l.componentId !== id),
-        }));
+        set((state) => {
+          const removedLogIds = state.serviceLogs
+            .filter((l) => l.componentId === id)
+            .map((l) => l.id);
+
+          return {
+            components: state.components.filter((c) => c.id !== id),
+            serviceLogs: state.serviceLogs.filter((l) => l.componentId !== id),
+            pendingDeletedComponentIds: [...state.pendingDeletedComponentIds, id],
+            pendingDeletedServiceLogIds: [
+              ...state.pendingDeletedServiceLogIds,
+              ...removedLogIds,
+            ],
+          };
+        });
       },
 
       updateComponentInterval: (id, intervalKm) => {
@@ -127,7 +144,7 @@ export const useComponentStore = create<ComponentStoreState>()(
 
         const serviceDate = new Date().toISOString();
         const log: ServiceLog = {
-          id: generateId('log'),
+          id: generateUuid(),
           componentId,
           motorId: component.motorId,
           serviceKm,
@@ -141,6 +158,22 @@ export const useComponentStore = create<ComponentStoreState>()(
           serviceLogs: [log, ...state.serviceLogs],
           components: state.components.map((c) =>
             c.id === componentId ? { ...c, lastServiceKm: serviceKm, lastServiceDate: serviceDate } : c,
+          ),
+        }));
+      },
+
+      clearPendingDeletedComponentIds: (ids) => {
+        set((state) => ({
+          pendingDeletedComponentIds: state.pendingDeletedComponentIds.filter(
+            (id) => !ids.includes(id),
+          ),
+        }));
+      },
+
+      clearPendingDeletedServiceLogIds: (ids) => {
+        set((state) => ({
+          pendingDeletedServiceLogIds: state.pendingDeletedServiceLogIds.filter(
+            (id) => !ids.includes(id),
           ),
         }));
       },
