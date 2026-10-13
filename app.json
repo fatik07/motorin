@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "motor-track-temp",
-    "slug": "motor-track-temp",
+    "name": "Motorin",
+    "slug": "motorin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +10,7 @@
     "scheme": "motortrack",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.motortracktemp"
+      "bundleIdentifier": "com.motorin.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
       },
       "softwareKeyboardLayoutMode": "pan",
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.motortracktemp"
+      "package": "com.motorin.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

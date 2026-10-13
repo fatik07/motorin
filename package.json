@@ -1,5 +1,5 @@
 {
-  "name": "motor-track-temp",
+  "name": "motorin",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
